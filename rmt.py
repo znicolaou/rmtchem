@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument("--zr0", type=float, default=0, dest='zr0', help='Initial Re(z) for generalized resolvant')
     parser.add_argument("--zi0", type=float, default=0, dest='zi0', help='Initial Im(z) for generalized resolvant')
     parser.add_argument("--zr1", type=float, default=0, dest='zr1', help='Final Re(z) for generalized resolvant')
-    parser.add_argument("--zi1", type=float, default=1, dest='zi1', help='Final Im(z) for generalized resolvant')
+    parser.add_argument("--zi1", type=float, default=10, dest='zi1', help='Final Im(z) for generalized resolvant')
     parser.add_argument("--gnum", type=int, default=25, dest='gnum', help='Number of g to evaluate')
     parser.add_argument("--eta", type=float, default=1e-2, dest='eta', help='Regularization parameter')
     args = parser.parse_args()
