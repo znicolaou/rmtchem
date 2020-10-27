@@ -6,27 +6,8 @@ import timeit
 import argparse
 import sys
 from progressbar import *
+from scipy.optimize import fsolve
 
-
-def regular(c, n, mu, sigma):
-    rows=np.array([])
-    cols=np.array([])
-    dat=np.array([])
-    in_degs=np.zeros(n)
-    for i in range(n):
-        for edge in range(c):
-            potential=np.setdiff1d(np.where(in_degs<c)[0],[i])
-            potential=np.setdiff1d(potential,rows[np.where(cols==i)[0]])
-            potential=np.setdiff1d(potential,cols[np.where(rows==i)[0]])
-            if(len(potential)==0):
-                print("failed, trying again")
-                return regular(c, n, mu, sigma)
-            j=np.random.choice(potential)
-            dat=np.append(dat,mu+np.random.normal(loc=mu,scale=sigma))
-            rows=np.append(rows,i)
-            cols=np.append(cols,j)
-            in_degs[j]+=1
-    return rows,cols,dat
 
 def rates(X,eta,nu,k):
     return k*np.product(X**nu,axis=1)
@@ -38,9 +19,10 @@ def jac(X,eta,nu,k):
     return np.tensordot(np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]),nu/X,axes=1)
 
 def steady(n, t1, dt, eta, nu, k):
-    np.random.seed(iseed)
+    pbar=ProgressBar(widgets=['Integration: ', Percentage(),Bar(), ' ', ETA()], maxval=t1)
+    pbar.start()
     X0 = np.random.random(n)
-    rode=ode(func).set_integrator('vode',rtol=0,atol=1e-6,max_step=dt)
+    rode=ode(func).set_integrator('lsoda',rtol=1e-3,atol=1e-3,max_step=dt)
     rode.set_initial_value(X0, 0)
     rode.set_f_params(eta, nu, k)
     for n in range(int(t1/dt)):
@@ -50,6 +32,33 @@ def steady(n, t1, dt, eta, nu, k):
         Xs[n] = X
     pbar.finish()
 
+def func2(X, eta, nu, k, XD):
+    return XD+np.sum((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis],axis=0)
+
+def func3(t, X, eta, nu, k, XD):
+    return XD+np.sum((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis],axis=0)
+
+def jac2(X,eta,nu,k,XD):
+    return np.tensordot(np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]),nu/X,axes=1)
+
+def steady1(X0, eta, nu, k, XD):
+    return fsolve(func2,x0=X0,args=(eta,nu,k,XD),fprime=jac2)
+
+def steady2(n, t1, dt, eta, nu, k, XD):
+    pbar=ProgressBar(widgets=['Integration: ', Percentage(),Bar(), ' ', ETA()], maxval=t1)
+    pbar.start()
+    X0 = np.random.random(n)
+    XX=np.zeros((int(t1/dt),n))
+    rode=ode(func3).set_integrator('lsoda',rtol=1e-3,atol=1e-3,max_step=dt)
+    rode.set_initial_value(X0, 0)
+    rode.set_f_params(eta, nu, k, XD)
+    for n in range(int(t1/dt)):
+        t=n*dt
+        pbar.update(t)
+        X=rode.integrate(rode.t + dt)
+        XX[n] = X
+    pbar.finish()
+    return XX
 
 if __name__ == "__main__":
     #Command line arguments
@@ -84,55 +93,45 @@ if __name__ == "__main__":
     reversible=args.reversible
     np.random.seed(nseed)
 
-    if type==1:
-        start=timeit.default_timer()
-        rows,cols,dat=regular(c,n,mu,sigma)
-        stop=timeit.default_timer()
-        print("Generated random regular ", n, "x", n, " matrix with connectivity ", c , " in ", stop-start, "seconds")
-        sys.stdout.flush()
-        A=csr_matrix((dat, (rows, cols)), shape=(n, n)).toarray()
+    start=timeit.default_timer()
+    eta=np.zeros((2*nr,n))
+    nu=np.zeros((2*nr,n))
+    k=np.zeros(2*nr)
 
+    for i in range(nr):
+        reactants=np.random.choice(np.arange(n),size=2,replace=False)
+        products=np.random.choice(np.setdiff1d(np.arange(n),reactants),size=2,replace=False)
+        #forward
+        eta[2*i,reactants[0]]=1
+        eta[2*i,reactants[1]]=1
+        nu[2*i,products[0]]=1
+        nu[2*i,products[1]]=1
+        # k[2*i]=1
+        k[2*i]=np.random.random()
+        deltaG=np.sum(G[products])-np.sum(G[reactants])
+        K=np.exp(-deltaG)
+        print(K)
+        #reverse
+        nu[2*i+1,reactants[0]]=1
+        nu[2*i+1,reactants[1]]=1
+        eta[2*i+1,products[0]]=1
+        eta[2*i+1,products[1]]=1
+        k[2*i+1]=k[2*i]*K
 
-    if type==2:
-        start=timeit.default_timer()
-        eta=np.zeros((2*nr,n))
-        nu=np.zeros((2*nr,n))
-        k=np.zeros(2*nr)
+    pbar=ProgressBar(widgets=['Integration: ', Percentage(),Bar(), ' ', ETA()], maxval=t1)
+    pbar.start()
+    Xs=np.zeros((int(t1/dt),n))
+    steady(n,t1,dt,eta,nu,k)
+    stop=timeit.default_timer()
+    print("Calculated dynamics in ", stop-start, "seconds")
 
-        for i in range(nr):
-            reactants=np.random.choice(np.arange(n),size=2,replace=False)
-            products=np.random.choice(np.setdiff1d(np.arange(n),reactants),size=2,replace=False)
-            #forward
-            eta[2*i,reactants[0]]=1
-            eta[2*i,reactants[1]]=1
-            nu[2*i,products[0]]=1
-            nu[2*i,products[1]]=1
-            # k[2*i]=1
-            k[2*i]=np.random.random()
-            deltaG=np.sum(G[products])-np.sum(G[reactants])
-            K=np.exp(-deltaG)
-            print(K)
-            #reverse
-            nu[2*i+1,reactants[0]]=1
-            nu[2*i+1,reactants[1]]=1
-            eta[2*i+1,products[0]]=1
-            eta[2*i+1,products[1]]=1
-            k[2*i+1]=k[2*i]*K
-
-        pbar=ProgressBar(widgets=['Integration: ', Percentage(),Bar(), ' ', ETA()], maxval=t1)
-        pbar.start()
-        Xs=np.zeros((int(t1/dt),n))
-        steady(n,t1,dt,eta,nu,k)
-        stop=timeit.default_timer()
-        print("Calculated dynamics in ", stop-start, "seconds")
-
-        A=jac(Xs[-1],eta,nu,k)
-        np.save(filebase+"X",Xs)
-        np.save(filebase+"nu",nu)
-        np.save(filebase+"eta",eta)
-        out=open(filebase+"out.dat","w")
-        print('%i %i' % (n, nr), file=out)
-        out.close()
+    A=jac(Xs[-1],eta,nu,k)
+    np.save(filebase+"X",Xs)
+    np.save(filebase+"nu",nu)
+    np.save(filebase+"eta",eta)
+    out=open(filebase+"out.dat","w")
+    print('%i %i' % (n, nr), file=out)
+    out.close()
 
 
 

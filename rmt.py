@@ -92,6 +92,12 @@ if __name__ == "__main__":
     parser.add_argument("--sigma", type=float, default=1.0, dest='sigma', help='Standard deviation of entries')
     parser.add_argument("--output", type=int, default=1, dest='output', help='1 for matrix output, 0 for none')
     parser.add_argument("--seed", type=int, default=1, dest='seed', help='Random seed for the network')
+    parser.add_argument("--zr0", type=float, default=0, dest='zr0', help='Initial Re(z) for generalized resolvant')
+    parser.add_argument("--zi0", type=float, default=0, dest='zi0', help='Initial Im(z) for generalized resolvant')
+    parser.add_argument("--zr1", type=float, default=0, dest='zr1', help='Final Re(z) for generalized resolvant')
+    parser.add_argument("--zi1", type=float, default=1, dest='zi1', help='Final Im(z) for generalized resolvant')
+    parser.add_argument("--gnum", type=int, default=25, dest='gnum', help='Number of g to evaluate')
+    parser.add_argument("--eta", type=float, default=1e-2, dest='eta', help='Regularization parameter')
     args = parser.parse_args()
     n=args.n
     c=args.c
@@ -101,6 +107,10 @@ if __name__ == "__main__":
     output=args.output
     seed=args.seed
     type=args.type
+    z0=args.zr0+1j*args.zi0
+    z1=args.zr1+1j*args.zr1
+    gnum=args.gnum
+    eta=args.eta
     np.random.seed(seed)
 
     start=timeit.default_timer()
@@ -120,3 +130,19 @@ if __name__ == "__main__":
     np.save(filebase+"evals.npy",evals)
 
     print("Calculated eigenvalues in ", stop-start, "seconds")
+
+    glst=np.zeros((gnum,2,2,n,n),dtype=np.complex128)
+    grlst=np.zeros((gnum,2,2,n,n,n),dtype=np.complex128)
+    Zlst=np.zeros((gnum,2,2),dtype=np.complex128)
+    for i in range(gnum):
+        z=z0+(z1-z0)/gnum*i
+        Z=np.array([[0,z],[z.conjugate(),0]])
+        Zlst[i]=Z-1j*eta*np.array([[1,0],[0,1]])
+        glst[i]=g(A,z,eta)
+        grlst[i]=gr(A,z,eta)
+
+    np.save(filebase+"z.npy",Zlst)
+    np.save(filebase+"g.npy",glst)
+    np.save(filebase+"gr.npy",grlst)
+    stop=timeit.default_timer()
+    print("Calculated "+str(gnum)+" generalized resolvants in", stop-start, "seconds")
