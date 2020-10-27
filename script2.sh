@@ -11,8 +11,8 @@ source activate my_env
 export OMP_NUM_THREADS=1
 
 ZGN_c=2
-ZGN_n=50
-mkdir -p data/${ZGN_c}_${ZGN_n}
+ZGN_n=100
+#mkdir -p data/${ZGN_c}_${ZGN_n}
 
 jid=$((SLURM_ARRAY_TASK_ID))
 for sid in `seq 0 7`; do
