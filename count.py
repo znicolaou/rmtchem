@@ -18,7 +18,7 @@ for c in range(2,3):
             print("data/"+str(c)+"_"+str(n)+"/"+str(seed)+"evals.npy"+" not found")
             pass
         try:
-            vals2=np.load("data/"+str(c)+"_"+str(n)+"/"+str(seed)+"g.npy"),
+            vals2=np.load("data/"+str(c)+"_"+str(n)+"/"+str(seed)+"g.npy")
             avg=avg+vals
         except:
             print("data/"+str(c)+"_"+str(n)+"/"+str(seed)+"g.npy"+" not found")
