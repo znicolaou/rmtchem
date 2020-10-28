@@ -21,7 +21,7 @@ def regular (n, c, mu, sigma):
             potential=np.setdiff1d(potential,rows[np.where(cols==i)[0]])
             if(len(potential)==0):
                 print("failed, trying again")
-                return regular(c, n, mu, sigma)
+                return regular(n,c, mu, sigma)
             j=np.random.choice(potential)
             dat=np.append(dat,mu+np.random.normal(loc=mu,scale=sigma))
             rows=np.append(rows,i)
@@ -37,9 +37,7 @@ def erdos (n, c, mu, sigma):
     while (len(rows)<c*n):
         row=np.random.randint(n)
         col=np.random.randint(n)
-
         exclude=np.append(np.array(cols)[np.where(np.array(rows)==row)[0]], np.array(rows)[np.where(np.array(cols)==row)[0]])
-
         if not np.any((row==np.array(rows))*(col==np.array(cols))):
             if not np.any((col==np.array(rows))*(row==np.array(cols))):
                 if not np.any(col==exclude):
@@ -117,11 +115,14 @@ if __name__ == "__main__":
 
     start=timeit.default_timer()
     if type==1:
-        A=regular(c,n,mu,sigma)
+        A=regular(n,c,mu,sigma)
+        stop=timeit.default_timer()
+        print("Generated random regular ", n, "x", n, " matrix with connectivity ", c , " in ", stop-start, "seconds")
     else:
-        A=erdos(c,n,mu,sigma)
-    stop=timeit.default_timer()
-    print("Generated random regular ", n, "x", n, " matrix with connectivity ", c , " in ", stop-start, "seconds")
+        A=erdos(n,c,mu,sigma)
+        stop=timeit.default_timer()
+        print("Generated random erdos ", n, "x", n, " matrix with connectivity ", c , " in ", stop-start, "seconds")
+
     sys.stdout.flush()
 
     start=timeit.default_timer()
