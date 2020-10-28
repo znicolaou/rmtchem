@@ -40,7 +40,7 @@ if __name__ == "__main__":
     for seed in range(seed):
         try:
             vals=np.load(filebase+"/"+str(seed)+"evals.npy")
-            counts=counts+np.histogram2d(np.real(vals),np.imag(vals),bins=bins,range=[[-bmax,bmax],[-bmax,bmax]])[0]
+            counts=counts+np.histogram2d(np.real(vals),np.imag(vals),bins=bins,range=[[zr0,zr1],[zi0,zi1]])[0]
             tot+=len(vals)
         except:
             print(filebase+"/"+str(seed)+"evals.npy"+" not found")
