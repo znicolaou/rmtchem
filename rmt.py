@@ -131,18 +131,22 @@ if __name__ == "__main__":
 
     print("Calculated eigenvalues in ", stop-start, "seconds")
 
-    glst=np.zeros((gnum,2,2),dtype=np.complex128)
-    grlst=np.zeros((gnum,2,2,n),dtype=np.complex128)
-    Zlst=np.zeros((gnum,2,2),dtype=np.complex128)
+    glst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
+    grlst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
+    Zlst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
     for i in range(gnum):
-        z=z0+(z1-z0)/(gnum-1)*i
-        Z=np.array([[0,z],[z.conjugate(),0]])
-        Zlst[i]=Z-1j*eta*np.array([[1,0],[0,1]])
-        glst[i]=np.mean(np.diagonal(g(A,z,eta),axis1=2,axis2=3),axis=(2))
-        grlst[i]=np.mean(np.diagonal(gr(A,z,eta),axis1=2,axis2=3),axis=(3))
+        for j in range(gnum):
+            x=-5+10/(gnum-1)*i
+            y=-5+10/(gnum-1)*j
+            z=x+1j*y
+            # z=z0+(z1-z0)/(gnum-1)*i
+            Z=np.array([[0,z],[z.conjugate(),0]])
+            Zlst[i,j]=Z-1j*eta*np.array([[1,0],[0,1]])
+            glst[i,j]=np.mean(np.diagonal(g(A,z,eta),axis1=2,axis2=3),axis=(2))
+            # grlst[i]=np.mean(np.diagonal(gr(A,z,eta),axis1=2,axis2=3),axis=(2,3))
 
     np.save(filebase+"z.npy",Zlst)
     np.save(filebase+"g.npy",glst)
-    np.save(filebase+"gr.npy",grlst)
+    # np.save(filebase+"gr.npy",grlst)
     stop=timeit.default_timer()
     print("Calculated "+str(gnum)+" generalized resolvants in", stop-start, "seconds")
