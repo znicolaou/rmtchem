@@ -13,7 +13,7 @@ export OMP_NUM_THREADS=1
 ZGN_c=2
 ZGN_n=100
 
-ZGN_num=334
+ZGN_num=32
 mkdir -p data/${ZGN_c}_${ZGN_n}
 
 jid=$((SLURM_ARRAY_TASK_ID))
