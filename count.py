@@ -36,7 +36,7 @@ if __name__ == "__main__":
     eta=args.eta
 
     counts=np.zeros([gnum,gnum])
-    avg=np.zeros([gnum,gnum,2,2])
+    avg=np.zeros([gnum,gnum,2,2],dtype=np.complex128)
     tot=0
     for seed in range(seed):
         try:
@@ -48,10 +48,10 @@ if __name__ == "__main__":
             pass
         try:
             vals2=np.load(filebase+"/"+str(seed)+"g.npy")
-            avg=avg+vals
+            avg=avg+vals2
         except:
-            #print(filebase+"/"+str(seed)+"g.npy"+" not found")
+            print(filebase+"/"+str(seed)+"g.npy"+" not found")
             pass
-    np.save("data/"+str(c)+"_"+str(n)+".npy",counts)
-    np.save("data/"+str(c)+"_"+str(n)+"g.npy",avg)
+    np.save(filebase+".npy",counts)
+    np.save(filebase+"g.npy",avg)
     print(tot, " eigenvalues for c=", c)

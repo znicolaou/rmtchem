@@ -16,9 +16,9 @@ ZGN_n=100
 ZGN_num=32
 mkdir -p data/${ZGN_c}_${ZGN_n}
 
-jid=$((SLURM_ARRAY_TASK_ID))
-for sid in `seq 0 $((ZGN_num-1))`; do
-seed=$(($ZGN_num*jid+sid))
+jid=$((SLURM_ARRAY_TASK_ID-1))
+for sid in `seq $ZGN_num`; do
+seed=$((ZGN_num*jid+sid))
 echo seed is $seed
 filebase=data/${ZGN_c}_${ZGN_n}/$seed
 if [ ! -f ${filebase}evals.npy ]; then
