@@ -85,7 +85,7 @@ if __name__ == "__main__":
     #Command line arguments
     parser = argparse.ArgumentParser(description='Noisy pendula.')
     parser.add_argument("--filebase", type=str, required=True, dest='filebase', help='Base string for file output')
-    parser.add_argument("--n", type=int, default=10, dest='n', help='Number of nodes')
+    parser.add_argument("--n", type=int, default=500, dest='n', help='Number of nodes')
     parser.add_argument("--c", type=int, default=2, dest='c', help='Connectivity')
     parser.add_argument("--mu", type=float, default=1.0, dest='mu', help='Mean of entries')
     parser.add_argument("--type", type=int, default=1, dest='type', help='1 for regular, 2 for Erdos-Renyi')
@@ -95,8 +95,8 @@ if __name__ == "__main__":
     parser.add_argument("--zr0", type=float, default=0, dest='zr0', help='Initial Re(z) for generalized resolvant')
     parser.add_argument("--zi0", type=float, default=0, dest='zi0', help='Initial Im(z) for generalized resolvant')
     parser.add_argument("--zr1", type=float, default=0, dest='zr1', help='Final Re(z) for generalized resolvant')
-    parser.add_argument("--zi1", type=float, default=10, dest='zi1', help='Final Im(z) for generalized resolvant')
-    parser.add_argument("--gnum", type=int, default=25, dest='gnum', help='Number of g to evaluate')
+    parser.add_argument("--zi1", type=float, default=5, dest='zi1', help='Final Im(z) for generalized resolvant')
+    parser.add_argument("--gnum", type=int, default=50, dest='gnum', help='Number of g to evaluate')
     parser.add_argument("--eta", type=float, default=1e-2, dest='eta', help='Regularization parameter')
     args = parser.parse_args()
     n=args.n
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     seed=args.seed
     type=args.type
     z0=args.zr0+1j*args.zi0
-    z1=args.zr1+1j*args.zr1
+    z1=args.zr1+1j*args.zi1
     gnum=args.gnum
     eta=args.eta
     np.random.seed(seed)
@@ -131,15 +131,15 @@ if __name__ == "__main__":
 
     print("Calculated eigenvalues in ", stop-start, "seconds")
 
-    glst=np.zeros((gnum,2,2,n,n),dtype=np.complex128)
-    grlst=np.zeros((gnum,2,2,n,n,n),dtype=np.complex128)
+    glst=np.zeros((gnum,2,2),dtype=np.complex128)
+    grlst=np.zeros((gnum,2,2,n),dtype=np.complex128)
     Zlst=np.zeros((gnum,2,2),dtype=np.complex128)
     for i in range(gnum):
-        z=z0+(z1-z0)/gnum*i
+        z=z0+(z1-z0)/(gnum-1)*i
         Z=np.array([[0,z],[z.conjugate(),0]])
         Zlst[i]=Z-1j*eta*np.array([[1,0],[0,1]])
-        glst[i]=g(A,z,eta)
-        grlst[i]=gr(A,z,eta)
+        glst[i]=np.mean(np.diagonal(g(A,z,eta),axis1=2,axis2=3),axis=(2))
+        grlst[i]=np.mean(np.diagonal(gr(A,z,eta),axis1=2,axis2=3),axis=(3))
 
     np.save(filebase+"z.npy",Zlst)
     np.save(filebase+"g.npy",glst)
