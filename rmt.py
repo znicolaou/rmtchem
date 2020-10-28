@@ -151,4 +151,4 @@ if __name__ == "__main__":
     np.save(filebase+"g.npy",glst)
     # np.save(filebase+"gr.npy",grlst)
     stop=timeit.default_timer()
-    print("Calculated "+str(gnum)*str(gnum)+" generalized resolvants in", stop-start, "seconds")
+    print("Calculated "+str(gnum*gnum)+" generalized resolvants in", stop-start, "seconds")
