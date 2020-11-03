@@ -43,6 +43,6 @@ if __name__ == "__main__":
         except:
             print(filebase+"/"+str(seed)+"g.npy"+" not found")
             pass
-    np.save(filebase+".npy",counts)
-    np.save(filebase+"g.npy",avg)
+    np.save(filebase+".npy",counts/(tot*(zr1-zr0)/gnum*(zi1-zi0)/gnum))
+    np.save(filebase+"g.npy",avg/tot)
     print(tot, " eigenvalues")
