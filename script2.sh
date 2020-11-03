@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -n 8
-#SBATCH -a [1-30]
+#SBATCH -a [1-29]
 #SBATCH --time=00-2:00:00
 #SBATCH --mem=16gb
 #SBATCH --output=outs/%j.out
@@ -12,9 +12,10 @@ export OMP_NUM_THREADS=1
 
 ZGN_c=2
 ZGN_mu=0
-ZGN_sigma=10
+ZGN_sigma=1
 ZGN_n=100
-ZGN_num=42
+#ZGN_num=345
+ZGN_num=35
 filebase0=${ZGN_c}_${ZGN_n}_0
 
 mkdir -p data/$filebase0
