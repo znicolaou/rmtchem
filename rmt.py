@@ -40,11 +40,10 @@ def erdos (n, c, mu, sigma):
         exclude=np.append(np.array(cols)[np.where(np.array(rows)==row)[0]], np.array(rows)[np.where(np.array(cols)==row)[0]])
         if not np.any((row==np.array(rows))*(col==np.array(cols))):
             if not np.any((col==np.array(rows))*(row==np.array(cols))):
-                if not np.any(col==exclude):
+                if not np.any(col==exclude) and not row==col:
                     rows.append(row)
                     cols.append(col)
                     dat.append(np.random.normal(loc=mu,scale=sigma))
-
     A=csr_matrix((dat, (rows, cols)), shape=(n, n)).toarray()
     return A
 def B(A, z,eta):
@@ -117,11 +116,11 @@ if __name__ == "__main__":
     if type==1:
         A=regular(n,c,mu,sigma)
         stop=timeit.default_timer()
-        print("Generated random regular ", n, "x", n, " matrix with connectivity ", c , " in ", stop-start, "seconds")
+        print("Generated random regular ", n, "x", n, " matrix with connectivity ", c , " in ", stop-start, "seconds",flush=True)
     else:
         A=erdos(n,c,mu,sigma)
         stop=timeit.default_timer()
-        print("Generated random erdos ", n, "x", n, " matrix with connectivity ", c , " in ", stop-start, "seconds")
+        print("Generated oriented Erdos-Renyi ", n, "x", n, " matrix with connectivity ", c , " in ", stop-start, "seconds",flush=True)
 
     sys.stdout.flush()
 
@@ -132,7 +131,7 @@ if __name__ == "__main__":
         np.save(filebase+"mat.npy",A)
     np.save(filebase+"evals.npy",evals)
 
-    print("Calculated eigenvalues in ", stop-start, "seconds")
+    print("Calculated eigenvalues in ", stop-start, "seconds",flush=True)
 
     glst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
     grlst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
@@ -152,4 +151,4 @@ if __name__ == "__main__":
     np.save(filebase+"g.npy",glst)
     # np.save(filebase+"gr.npy",grlst)
     stop=timeit.default_timer()
-    print("Calculated "+str(gnum*gnum)+" generalized resolvants in", stop-start, "seconds")
+    print("Calculated "+str(gnum*gnum)+" generalized resolvants in", stop-start, "seconds",flush=True)

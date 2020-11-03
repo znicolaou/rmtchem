@@ -11,18 +11,22 @@ source activate my_env
 export OMP_NUM_THREADS=1
 
 ZGN_c=2
+ZGN_mu=0
+ZGN_sigma=10
 ZGN_n=100
+ZGN_num=42
+filebase0=${ZGN_c}_${ZGN_n}_0
 
-ZGN_num=32
-mkdir -p data/${ZGN_c}_${ZGN_n}
+mkdir -p data/$filebase0
 
 jid=$((SLURM_ARRAY_TASK_ID-1))
 for sid in `seq $ZGN_num`; do
 seed=$((ZGN_num*jid+sid))
 echo seed is $seed
-filebase=data/${ZGN_c}_${ZGN_n}/$seed
+filebase=data/${filebase0}/$seed
+
 if [ ! -f ${filebase}evals.npy ]; then
-./rmt.py --n ${ZGN_n} --c $ZGN_c --seed $seed --filebase $filebase --output 1 &
+./rmt.py --n ${ZGN_n} --c $ZGN_c --mu $ZGN_mu --sigma $ZGN_sigma --seed $seed --filebase $filebase --output 1 &
 else
 echo "Previously run $seed"
 fi
