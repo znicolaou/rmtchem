@@ -132,6 +132,7 @@ if __name__ == "__main__":
     glst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
     grlst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
     Zlst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
+    start=timeit.default_timer()
     for i in range(gnum):
         for j in range(gnum):
             x=zr0+(zr1-zr0)/(gnum-1)*i
@@ -141,6 +142,7 @@ if __name__ == "__main__":
             Zlst[i,j]=Z-1j*eta*np.array([[1,0],[0,1]])
             glst[i,j]=np.mean(np.diagonal(g(A,z,eta),axis1=2,axis2=3),axis=(2))
             # grlst[i]=np.mean(np.diagonal(gr(A,z,eta),axis1=2,axis2=3),axis=(2,3))
+    stop=timeit.default_timer()
     print("Calculated "+str(gnum*gnum)+" generalized resolvants in", stop-start, "seconds",flush=True)
 
 

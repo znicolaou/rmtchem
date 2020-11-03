@@ -45,4 +45,4 @@ if __name__ == "__main__":
             pass
     np.save(filebase+".npy",counts/tot)
     np.save(filebase+"g.npy",avg/tot)
-    print(tot, " eigenvalues for c=", c)
+    print(tot, " eigenvalues")
