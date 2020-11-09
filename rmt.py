@@ -133,15 +133,24 @@ if __name__ == "__main__":
     grlst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
     Zlst=np.zeros((gnum,gnum,2,2),dtype=np.complex128)
     start=timeit.default_timer()
-    for i in range(gnum):
-        for j in range(gnum):
-            x=zr0+(zr1-zr0)/(gnum-1)*i
-            y=zi0+(zi1-zi0)/(gnum-1)*j
-            z=x+1j*y
-            Z=np.array([[0,z],[z.conjugate(),0]])
-            Zlst[i,j]=Z-1j*eta*np.array([[1,0],[0,1]])
-            glst[i,j]=np.mean(np.diagonal(g(A,z,eta),axis1=2,axis2=3),axis=(2))
-            # grlst[i]=np.mean(np.diagonal(gr(A,z,eta),axis1=2,axis2=3),axis=(2,3))
+    if (zr1 != zr0) and (zi1 != zi0 ):
+        for i in range(gnum):
+            for j in range(gnum):
+                x=zr0+(zr1-zr0)/(gnum-1)*i
+                y=zi0+(zi1-zi0)/(gnum-1)*j
+                z=x+1j*y
+                Z=np.array([[0,z],[z.conjugate(),0]])
+                Zlst[i,j]=Z-1j*eta*np.array([[1,0],[0,1]])
+                glst[i,j]=np.mean(np.diagonal(g(A,z,eta),axis1=2,axis2=3),axis=(2))
+                # grlst[i]=np.mean(np.diagonal(gr(A,z,eta),axis1=2,axis2=3),axis=(2,3))
+    else:
+        x=zr0
+        y=zi0
+        z=x+1j*y
+        Z=np.array([[0,z],[z.conjugate(),0]])
+        Zlst[0,0]=Z-1j*eta*np.array([[1,0],[0,1]])
+        glst[0,0]=np.mean(np.diagonal(g(A,z,eta),axis1=2,axis2=3),axis=(2))
+        
     stop=timeit.default_timer()
     print("Calculated "+str(gnum*gnum)+" generalized resolvants in", stop-start, "seconds",flush=True)
 
