@@ -46,6 +46,8 @@ def erdos (n, c, mu, sigma):
                     dat.append(np.random.normal(loc=mu,scale=sigma))
     A=csr_matrix((dat, (rows, cols)), shape=(n, n)).toarray()
     return A
+
+#We are not using sparsity here, maybe faster if A is a csr_matrix
 def B(A, z,eta):
     n=len(A)
     return np.block([[eta*np.diag(np.ones(n)), -1j*(A-z*np.diag(np.ones(n)))], [-1j*np.transpose(np.conjugate((A-z*np.diag(np.ones(n))))),eta*np.diag(np.ones(n))]])
@@ -55,7 +57,6 @@ def G(A, z, eta):
 def rho(A, z, eta, epsilon):
     n=len(A)
     return 1j/(n*np.pi)*np.trace(G(A,z,eta)-G(A,z-epsilon,eta)-1j*G(A,z,eta)+1j*G(A,z-1j*epsilon,eta))/(2*epsilon)
-
 def g(A,z,eta):
     n=len(A)
     binv=np.linalg.inv(B(A,z,eta))
@@ -150,7 +151,7 @@ if __name__ == "__main__":
         Z=np.array([[0,z],[z.conjugate(),0]])
         Zlst[0,0]=Z-1j*eta*np.array([[1,0],[0,1]])
         glst[0,0]=np.mean(np.diagonal(g(A,z,eta),axis1=2,axis2=3),axis=(2))
-        
+
     stop=timeit.default_timer()
     print("Calculated "+str(gnum*gnum)+" generalized resolvants in", stop-start, "seconds",flush=True)
 
