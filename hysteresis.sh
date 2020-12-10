@@ -10,8 +10,8 @@ module load python/anaconda3.7
 source activate my_env
 export OMP_NUM_THREADS=1
 
-ZGN_num=16
-ZGN_n=200
+ZGN_num=8
+ZGN_n=50
 ZGN_nr=$((2*ZGN_n))
 ZGN_nd=$((ZGN_n/10))
 ZGN_filebase0="data/$ZGN_n"
