@@ -95,6 +95,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
                 X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],5000,100,prog=False)
                 ret[m]=X1[-1]
         X0=ret[m]-np.linalg.inv(jac(ret[m],eta, nu, k, XD1s[m], XD2s[m]))@np.diff(XD1s,axis=0)[0]
+        #Here we could check if X0/ret[m] is small enough to justify linear approximation, and reduce the step size if not. We could simplify interpolate a half step if it is not, and only set ret[m] at the full steps
     return ret, 1
 
 def hysteresis (X0, eta, nu, k, XD1s, XD2s):
@@ -102,7 +103,8 @@ def hysteresis (X0, eta, nu, k, XD1s, XD2s):
     steps=len(XD1s)
     evals1=np.zeros((steps,n),dtype=np.complex128)
     evals2=np.zeros((steps,n),dtype=np.complex128)
-    print('forward')
+    if output:
+        print('forward')
     Xs1,success=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     Xs2=np.flip(Xs1,axis=0)
@@ -110,7 +112,8 @@ def hysteresis (X0, eta, nu, k, XD1s, XD2s):
         evals1=np.array([np.linalg.eig(jac(Xs1[m],eta,nu,k,XD1s[m], XD2s[m]))[0] for m in range(steps)])
         XD3s=np.flip(XD1s,axis=0)
         XD4s=np.flip(XD2s,axis=0)
-        print('reverse')
+        if output:
+            print('reverse')
         Xs2,success=quasistatic(Xs1[-1], eta, nu, k, XD3s, XD4s)
         # if success>0:
         evals2=np.array([np.linalg.eig(jac(Xs2[m],eta,nu,k,XD1s[m], XD2s[m]))[0] for m in range(steps)])
