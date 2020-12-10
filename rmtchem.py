@@ -48,7 +48,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
         pbar=ProgressBar(widgets=['Integration: ', Percentage(),Bar(), ' ', ETA()], maxval=t1)
         pbar.start()
     Xs=np.zeros((int(t1/dt),n))
-    rode=ode(func).set_integrator('lsoda',rtol=1e-3,atol=1e-3,max_step=dt)
+    rode=ode(func).set_integrator('lsoda',rtol=1e-3,atol=1e-8,max_step=dt)
     rode.set_initial_value(X0, 0)
     rode.set_f_params(eta, nu, k, XD1, XD2)
     for n in range(int(t1/dt)):
@@ -70,24 +70,31 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
     ret=np.ones((steps,n))
     ret[0]=X0
     for m in range(steps):
-        count=0
-        sol=steady(ret[m],eta,nu,k,XD1s[m],XD2s[m])
+        sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
         if sol.success:
             ret[m]=sol.x
         else:
+            if output:
+                print('Trying to integrate', m)
             success=1
+            count=0
             while (not sol.success) and (count<100) and (success>0):
-                X1,success=integrate(ret[m],eta,nu,k,XD1s[m],XD2s[m],5000,100,prog=False)
-                ret[m]=X1[-1]
-                sol=steady(ret[m],eta,nu,k,XD1s[m],XD2s[m])
+                prog=False
+                if output:
+                    prog=True
+                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],500,1,prog=prog)
+                X0=X1[-1]
+                sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
                 count=count+1
             if success>0 and sol.success:
                 ret[m]=sol.x
             else:
-                print('\n failed to integrate ')
-                return ret, 0
-        if m<steps-1:
-            ret[m+1]=ret[m]
+                if output:
+                    print('Failed to integrate. Using random ic. ')
+                X0=np.random.random(size=n)
+                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],5000,100,prog=False)
+                ret[m]=X1[-1]
+        X0=ret[m]-np.linalg.inv(jac(ret[m],eta, nu, k, XD1s[m], XD2s[m]))@np.diff(XD1s,axis=0)[0]
     return ret, 1
 
 def hysteresis (X0, eta, nu, k, XD1s, XD2s):
@@ -95,6 +102,7 @@ def hysteresis (X0, eta, nu, k, XD1s, XD2s):
     steps=len(XD1s)
     evals1=np.zeros((steps,n),dtype=np.complex128)
     evals2=np.zeros((steps,n),dtype=np.complex128)
+    print('forward')
     Xs1,success=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     Xs2=np.flip(Xs1,axis=0)
@@ -102,9 +110,10 @@ def hysteresis (X0, eta, nu, k, XD1s, XD2s):
         evals1=np.array([np.linalg.eig(jac(Xs1[m],eta,nu,k,XD1s[m], XD2s[m]))[0] for m in range(steps)])
         XD3s=np.flip(XD1s,axis=0)
         XD4s=np.flip(XD2s,axis=0)
+        print('reverse')
         Xs2,success=quasistatic(Xs1[-1], eta, nu, k, XD3s, XD4s)
-        if success>0:
-            evals2=np.array([np.linalg.eig(jac(Xs2[m],eta,nu,k,XD1s[m], XD2s[m]))[0] for m in range(steps)])
+        # if success>0:
+        evals2=np.array([np.linalg.eig(jac(Xs2[m],eta,nu,k,XD1s[m], XD2s[m]))[0] for m in range(steps)])
     return Xs1, np.flip(Xs2,axis=0), evals1, np.flip(evals2,axis=0)
 
 if __name__ == "__main__":
@@ -147,8 +156,7 @@ if __name__ == "__main__":
         XD2s[m,inds]=d0
 
     Xs1,Xs2,evals1,evals2=hysteresis(X0, eta, nu, k, XD1s, XD2s)
-    # mevals1=np.array([np.max(np.real(evals1[m])[np.where(np.real(evals1[m])!=0)]) for m in range(steps)])
-    # mevals2=np.array([np.max(np.real(evals2[m])[np.where(np.real(evals2[m])!=0)]) for m in range(steps)])
+
     mevals1=np.array([np.max(np.real(evals1[m])) for m in range(steps)])
     mevals2=np.array([np.max(np.real(evals2[m])) for m in range(steps)])
     stop=timeit.default_timer()
