@@ -96,6 +96,7 @@ def hysteresis (X0, eta, nu, k, XD1s, XD2s):
     evals1=np.zeros((steps,n),dtype=np.complex128)
     evals2=np.zeros((steps,n),dtype=np.complex128)
     Xs1,success=quasistatic(X0, eta, nu, k, XD1s, XD2s)
+
     Xs2=np.flip(Xs1,axis=0)
     if success>0:
         evals1=np.array([np.linalg.eig(jac(Xs1[m],eta,nu,k,XD1s[m], XD2s[m]))[0] for m in range(steps)])
@@ -104,7 +105,7 @@ def hysteresis (X0, eta, nu, k, XD1s, XD2s):
         Xs2,success=quasistatic(Xs1[-1], eta, nu, k, XD3s, XD4s)
         if success>0:
             evals2=np.array([np.linalg.eig(jac(Xs2[m],eta,nu,k,XD1s[m], XD2s[m]))[0] for m in range(steps)])
-            return Xs1, np.flip(Xs2,axis=0), evals1, np.flip(evals2,axis=0)
+    return Xs1, np.flip(Xs2,axis=0), evals1, np.flip(evals2,axis=0)
 
 if __name__ == "__main__":
     #Command line arguments
@@ -146,8 +147,10 @@ if __name__ == "__main__":
         XD2s[m,inds]=d0
 
     Xs1,Xs2,evals1,evals2=hysteresis(X0, eta, nu, k, XD1s, XD2s)
-    mevals1=np.array([np.max(np.real(evals1[m])[np.where(np.real(evals1[m])!=0)]) for m in range(steps)])
-    mevals2=np.array([np.max(np.real(evals2[m])[np.where(np.real(evals2[m])!=0)]) for m in range(steps)])
+    # mevals1=np.array([np.max(np.real(evals1[m])[np.where(np.real(evals1[m])!=0)]) for m in range(steps)])
+    # mevals2=np.array([np.max(np.real(evals2[m])[np.where(np.real(evals2[m])!=0)]) for m in range(steps)])
+    mevals1=np.array([np.max(np.real(evals1[m])) for m in range(steps)])
+    mevals2=np.array([np.max(np.real(evals2[m])) for m in range(steps)])
     stop=timeit.default_timer()
     print('%.3f\t%i\t%.3e\t%.3e'%(stop-start, seed, np.max(mevals1-mevals2), np.max(mevals1)))
     if output or (np.max(np.abs(mevals1-mevals2))>1e-2 or np.max(mevals1)>0) :
