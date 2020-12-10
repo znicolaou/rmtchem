@@ -116,7 +116,7 @@ if __name__ == "__main__":
     parser.add_argument("--dmax", type=float, default=100, dest='dmax', help='Maximum drive')
     parser.add_argument("--d0", type=float, default=1e3, dest='d0', help='Drive timescale')
     parser.add_argument("--seed", type=int, default=1, dest='seed', help='Random seed')
-    parser.add_argument("--steps", type=int, default=1, dest='steps', help='Steps for driving')
+    parser.add_argument("--steps", type=int, default=1000, dest='steps', help='Steps for driving')
     parser.add_argument("--output", type=int, default=0, dest='output', help='1 for matrix output, 0 for none')
     args = parser.parse_args()
     n=args.n
@@ -149,7 +149,6 @@ if __name__ == "__main__":
     mevals1=np.array([np.max(np.real(evals1[m])[np.where(np.real(evals1[m])!=0)]) for m in range(steps)])
     mevals2=np.array([np.max(np.real(evals2[m])[np.where(np.real(evals2[m])!=0)]) for m in range(steps)])
     stop=timeit.default_timer()
-    print(mevals1.shape,mevals2.shape)
     print('%.3f\t%i\t%.3e\t%.3e'%(stop-start, seed, np.max(mevals1-mevals2), np.max(mevals1)))
     if output or (np.max(np.abs(mevals1-mevals2))>1e-2 or np.max(mevals1)>0) :
         np.save(filebase+'eta.npy',eta)
