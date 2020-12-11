@@ -88,7 +88,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
                 X0=X1[-1]
                 sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
                 count=count+1
-                print('count',flush=True)
+                print(count,flush=True)
             if success>0 and sol.success:
                 ret[m]=sol.x
             else:
