@@ -134,7 +134,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
         if output and np.max(np.abs(dX/sols[m])) > 1e-1:
             print("step size large",m,np.max(np.abs((X0-sols[m])/X0)), flush=True)
 
-    return ret, steps
+    return sols,evals
 
 def hysteresis (X0, eta, nu, k, XD1s, XD2s):
     n=len(X0)
