@@ -93,6 +93,8 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
             else:
                 if output:
                     print('Failed to integrate. Using random ic. ', flush=True)
+                    print(sol.message)
+                    print(count, success)
                 X0=np.random.random(size=n)
                 count=0
                 while (not sol.success) and (count<100):
