@@ -205,7 +205,7 @@ if __name__ == "__main__":
     mevals1=np.array([np.max(np.real(evals1[m])) for m in range(mmax)])
     mevals2=np.array([np.max(np.real(evals2[m])) for m in range(mmax)])
     stop=timeit.default_timer()
-    print('%.3f\t%i\t%.3e\t%.3e'%(stop-start, mmax, np.max(mevals1-mevals2), np.max(mevals1)), flush=True)
+    print('%.3f\t%i\t%.3e\t%.3e'%(stop-start, seed, mmax, np.max(mevals1-mevals2), np.max(mevals1)), flush=True)
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
     #We should indicate the bifurcation type in the out file here.
