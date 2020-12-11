@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -n 8
 #SBATCH -a [1-30]
-#SBATCH --time=00-2:00:00
+#SBATCH --time=01-00:00:00
 #SBATCH --mem=16gb
 #SBATCH --output=outs/%j.out
 #SBATCH -p GTX980
@@ -11,7 +11,7 @@ source activate my_env
 export OMP_NUM_THREADS=1
 
 ZGN_num=8
-ZGN_n=200
+ZGN_n=50
 ZGN_nr=$((2*ZGN_n))
 ZGN_nd=$((ZGN_n/10))
 ZGN_filebase0="data/$ZGN_n"
