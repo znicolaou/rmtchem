@@ -39,7 +39,7 @@ def jac(X,eta,nu,k,XD1,XD2):
     return -np.diag(XD2)+np.tensordot(np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]),nu/X,axes=1)
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-8,'diag':X0})
+    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':X0})
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
     n=len(X0)
@@ -48,7 +48,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
         pbar=ProgressBar(widgets=['Integration: ', Percentage(),Bar(), ' ', ETA()], maxval=t1)
         pbar.start()
     Xs=np.zeros((int(t1/dt),n))
-    rode=ode(func).set_integrator('lsoda',rtol=1e-3,atol=1e-3,max_step=dt)
+    rode=ode(func).set_integrator('lsoda',rtol=1e-6,atol=1e-6,max_step=dt)
     rode.set_initial_value(X0, 0)
     rode.set_f_params(eta, nu, k, XD1, XD2)
     for n in range(int(t1/dt)):
@@ -76,20 +76,21 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
     for m in range(steps):
         sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
         #If there is a Hopf here, we continue the solution. We may want to find a new attractor with random ics..
-        if sol.success:
+        if sol.success and np.min(sol.x)>0:
             ret[m]=sol.x
         else:
             if output:
                 print('Trying to integrate', m, flush=True)
             success=1
             count=0
-            while (not sol.success) and (count<100) and (success>0):
+            sol.success=False
+            while (not sol.success) and (count<100) and (success>0) and (np.min(X0)>0):
                 X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],500,1,prog=prog)
                 X0=X1[-1]
                 sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
                 count=count+1
                 print(count,flush=True)
-            if success>0 and sol.success:
+            if success>0 and sol.success and np.min(sol.x)>0:
                 ret[m]=sol.x
             else:
                 if output:
@@ -106,9 +107,13 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
                 ret[m]=X1[-1]
         # X0=ret[m]-np.linalg.inv(jac(ret[m],eta, nu, k, XD1s[m], XD2s[m]))@np.diff(XD1s,axis=0)[0]
         dX=-np.linalg.solve(jac(ret[m],eta, nu, k, XD1s[m], XD2s[m]),np.diff(XD1s,axis=0)[0])
-        X0=ret[m]+dX
+        if np.min(ret[m]+dX)>0:
+            X0=ret[m]+dX
+        else:
+            X0=ret[m]
         if output and np.max(np.abs(dX/(X0+ret[m]))) > 1e-1:
             print("step size small",m,np.max(np.abs((X0-ret[m])/X0)), flush=True)
+
         #Here we could check if X0/ret[m] is small enough to justify linear approximation, and reduce the step size if not. We could interpolate a half step if it is not, and only set ret[m] at the full steps
     return ret, 1
 
