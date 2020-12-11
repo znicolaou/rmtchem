@@ -12,6 +12,8 @@ export OMP_NUM_THREADS=1
 
 ZGN_num=8
 ZGN_n=50
+ZGN_skip=10
+ZGN_steps=5000
 ZGN_nr=$((2*ZGN_n))
 ZGN_nd=$((ZGN_n/10))
 ZGN_filebase0="data/$ZGN_n"
@@ -23,7 +25,7 @@ for sid in `seq $ZGN_num`; do
 seed=$((ZGN_num*jid+sid))
 ZGN_filebase="${ZGN_filebase0}/${seed}"
 #echo filebase is $ZGN_filebase
-./rmtchem.py --filebase $ZGN_filebase --n $ZGN_n --nr $ZGN_nr --nd $ZGN_nd --seed $seed --steps 1000 &
+./rmtchem.py --filebase $ZGN_filebase --n $ZGN_n --nr $ZGN_nr --nd $ZGN_nd --seed $seed --steps $ZGN_steps --skip $ZGN_skip &
 
 js=`jobs | wc -l`
 while [ $js -ge 8 ]; do
