@@ -39,7 +39,7 @@ def jac(X,eta,nu,k,XD1,XD2):
     return -np.diag(XD2)+np.tensordot(np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]),nu/X,axes=1)
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':X0})
+    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-4,'diag':X0})
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
     n=len(X0)
@@ -84,13 +84,14 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
             success=1
             count=0
             sol.success=False
-            while (not sol.success) and (count<100) and (success>0) and (np.min(X0)>0):
-                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],500,1,prog=prog)
+            X0=X0*(1+(np.random.random(size=n)-0.5)*1e-1) #perturb ic to speed up divergence
+            while (not sol.success) and (count<10) and (success>0) and (np.min(X0)>0):
+                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],500,0.1,prog=prog)
                 X0=X1[-1]
                 sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
                 count=count+1
                 if output:
-                    print(count,flush=True)
+                    print(count,sol.message, success, flush=True)
             if success>0 and sol.success and np.min(sol.x)>0:
                 ret[m]=sol.x
             else:
@@ -101,19 +102,18 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
                 X0=np.random.random(size=n)
                 count=0
                 while (not sol.success) and (count<100):
-                    X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],5000,100,prog=prog)
+                    X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],5000,0.1,prog=prog)
                     X0=X1[-1]
                     sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
                     count=count+1
                 ret[m]=X1[-1]
         # X0=ret[m]-np.linalg.inv(jac(ret[m],eta, nu, k, XD1s[m], XD2s[m]))@np.diff(XD1s,axis=0)[0]
         dX=-np.linalg.solve(jac(ret[m],eta, nu, k, XD1s[m], XD2s[m]),np.diff(XD1s,axis=0)[0])
-        if np.min(ret[m]+dX)>0:
-            X0=ret[m]+dX
-        else:
-            X0=ret[m]
-        if output and np.max(np.abs(dX/(X0+ret[m]))) > 1e-1:
-            print("step size small",m,np.max(np.abs((X0-ret[m])/X0)), flush=True)
+        if np.min(ret[m]+dX)<0:
+            dX=0
+        X0=ret[m]+dX
+        if output and np.max(np.abs(dX/X0)) > 1e-1:
+            print("step size large",m,np.max(np.abs((X0-ret[m])/X0)), flush=True)
 
         #Here we could check if X0/ret[m] is small enough to justify linear approximation, and reduce the step size if not. We could interpolate a half step if it is not, and only set ret[m] at the full steps
     return ret, 1
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     eta,nu,k,G=get_network(n,nr)
     if np.min(np.max(eta,axis=0)+np.max(nu,axis=0)) < 1:
         stop=timeit.default_timer()
-        print('%.3f\t%i\t%.3e\t%.3e\t%s'%(stop-start, seed, -1.0, -1.0), flush=True)
+        print('%.3f\t%i\t%.3e\t%.3e'%(stop-start, seed, -1.0, -1.0), flush=True)
         quit()
     X0=np.exp(-G)
     inds=np.argsort(np.exp(-G))[:nd]
