@@ -89,7 +89,8 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
                 X0=X1[-1]
                 sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
                 count=count+1
-                print(count,flush=True)
+                if output:
+                    print(count,flush=True)
             if success>0 and sol.success and np.min(sol.x)>0:
                 ret[m]=sol.x
             else:
@@ -168,7 +169,8 @@ if __name__ == "__main__":
     start=timeit.default_timer()
     eta,nu,k,G=get_network(n,nr)
     if np.min(np.max(eta,axis=0)+np.max(nu,axis=0)) < 1:
-        print('graph is disconnected', flush=True)
+        stop=timeit.default_timer()
+        print('%.3f\t%i\t%.3e\t%.3e\t%s'%(stop-start, seed, -1.0, -1.0), flush=True)
         quit()
     X0=np.exp(-G)
     inds=np.argsort(np.exp(-G))[:nd]
