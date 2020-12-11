@@ -71,7 +71,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
     ret[0]=X0
     prog=False
     if output:
-        prog=True
+        prog=False
 
     for m in range(steps):
         sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
@@ -80,7 +80,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
             ret[m]=sol.x
         else:
             if output:
-                print('Trying to integrate', m)
+                print('Trying to integrate', m, flush=True)
             success=1
             count=0
             while (not sol.success) and (count<100) and (success>0):
@@ -92,7 +92,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
                 ret[m]=sol.x
             else:
                 if output:
-                    print('Failed to integrate. Using random ic. ')
+                    print('Failed to integrate. Using random ic. ', flush=True)
                 X0=np.random.random(size=n)
                 count=0
                 while (not sol.success) and (count<100):
@@ -105,7 +105,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
         dX=-np.linalg.solve(jac(ret[m],eta, nu, k, XD1s[m], XD2s[m]),np.diff(XD1s,axis=0)[0])
         X0=ret[m]+dX
         if output and np.max(np.abs(dX/(X0+ret[m]))) > 1e-1:
-            print("step size small",m,np.max(np.abs((X0-ret[m])/X0)))
+            print("step size small",m,np.max(np.abs((X0-ret[m])/X0)), flush=True)
         #Here we could check if X0/ret[m] is small enough to justify linear approximation, and reduce the step size if not. We could interpolate a half step if it is not, and only set ret[m] at the full steps
     return ret, 1
 
@@ -115,7 +115,7 @@ def hysteresis (X0, eta, nu, k, XD1s, XD2s):
     evals1=np.zeros((steps,n),dtype=np.complex128)
     evals2=np.zeros((steps,n),dtype=np.complex128)
     if output:
-        print('forward')
+        print('forward', flush=True)
     Xs1,success=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     Xs2=np.flip(Xs1,axis=0)
@@ -124,7 +124,7 @@ def hysteresis (X0, eta, nu, k, XD1s, XD2s):
         XD3s=np.flip(XD1s,axis=0)
         XD4s=np.flip(XD2s,axis=0)
         if output:
-            print('reverse')
+            print('reverse', flush=True)
         Xs2,success=quasistatic(Xs1[-1], eta, nu, k, XD3s, XD4s)
         # if success>0:
         evals2=np.array([np.linalg.eig(jac(Xs2[m],eta,nu,k,XD1s[m], XD2s[m]))[0] for m in range(steps)])
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     start=timeit.default_timer()
     eta,nu,k,G=get_network(n,nr)
     if np.min(np.max(eta,axis=0)+np.max(nu,axis=0)) < 1:
-        print('graph is disconnected')
+        print('graph is disconnected', flush=True)
         quit()
     X0=np.exp(-G)
     inds=np.argsort(np.exp(-G))[:nd]
@@ -177,7 +177,7 @@ if __name__ == "__main__":
     mevals1=np.array([np.max(np.real(evals1[m])) for m in range(steps)])
     mevals2=np.array([np.max(np.real(evals2[m])) for m in range(steps)])
     stop=timeit.default_timer()
-    print('%.3f\t%i\t%.3e\t%.3e'%(stop-start, seed, np.max(mevals1-mevals2), np.max(mevals1)))
+    print('%.3f\t%i\t%.3e\t%.3e'%(stop-start, seed, np.max(mevals1-mevals2), np.max(mevals1)), flush=True)
     if output or (np.max(np.abs(mevals1-mevals2))>1e-2 or np.max(mevals1)>0) :
         np.save(filebase+'eta.npy',eta)
         np.save(filebase+'nu.npy',nu)

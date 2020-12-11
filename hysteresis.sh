@@ -11,7 +11,7 @@ source activate my_env
 export OMP_NUM_THREADS=1
 
 ZGN_num=8
-ZGN_n=50
+ZGN_n=200
 ZGN_nr=$((2*ZGN_n))
 ZGN_nd=$((ZGN_n/10))
 ZGN_filebase0="data/$ZGN_n"
@@ -23,7 +23,7 @@ for sid in `seq $ZGN_num`; do
 seed=$((ZGN_num*jid+sid))
 ZGN_filebase="${ZGN_filebase0}/${seed}"
 #echo filebase is $ZGN_filebase
-./rmtchem.py --filebase $ZGN_filebase --n $ZGN_n --nr $ZGN_nr --nd $ZGN_nd --seed $seed --steps 5000 &
+./rmtchem.py --filebase $ZGN_filebase --n $ZGN_n --nr $ZGN_nr --nd $ZGN_nd --seed $seed --steps 1000 &
 
 js=`jobs | wc -l`
 while [ $js -ge 8 ]; do
