@@ -80,10 +80,15 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
         if sol.success:
             sols[m]=sol.x
             evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
-            if(np.max(np.real(evals[m]))>0):
-                if output:
-                    print('hopf bifurcation!',m)
-                return sols[:m],evals[:m],1
+            if np.max(np.real(evals[m]))>0:
+                if np.abs(np.imag(evals[m,np.argmax(np.real(evals[m]))]))>0:
+                    if output:
+                        print('hopf bifurcation!',m)
+                    return sols[:m+1],evals[:m+1],1
+                else:
+                    if output:
+                        print('saddle-node bifurcation!',m)
+                    return sols[:m+1],evals[:m+1],2
         else:
             if output:
                 print('saddle-node bifurcation! ',m)
