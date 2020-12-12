@@ -39,7 +39,7 @@ def jac(X,eta,nu,k,XD1,XD2):
     return -np.diag(XD2)+np.tensordot(np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]),nu/X,axes=1)
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
+    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
     n=len(X0)
@@ -83,12 +83,13 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
         else:
             if output:
                 print('saddle-node bifurcation! Looking for new branch.',m)
+                #if we have a transcritical bifurcation, we will not find a new solution branch
+                #In this case, the multiplicity of the zero eigenvalue should be >1
             count=0
             success=1
-            X0=X0*(1+(np.random.random(size=n)-0.5)*1e-2) #perturb ic
-
-            while (not sol.success) and (count<10) and (success>0) and (np.min(X0)>0):
-                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],500,1,prog=prog)
+            X0=X0*(1+(np.random.random(size=n)-0.5)) #perturb ic
+            while (not sol.success) and (count<100) and (success>0) and (np.min(X0)>0):
+                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],1000,1,prog=prog)
                 X0=X1[-1]
                 sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
                 count=count+1
@@ -98,31 +99,37 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
                 if output:
                     print('new branch found')
                 sols[m]=sol.x
+                evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
+                return sols[:m+1],evals[:m+1]
             else:
                 if output:
                     print('failed - no fixed points?')
-            evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
-            return sols[:m+1],evals[:m+1]
+                return sols[:m],evals[:m]
+
 
         if(np.max(np.real(evals[m]))>0):
             if output:
                 print('hopf bifurcation!',m)
-            count=0
-            success=1
-            sol.success=False
-            X0=X0*(1+(np.random.random(size=n)-0.5)*1e-2) #perturb ic
-            while (not sol.success) and (count<10) and (success>0) and (np.min(X0)>0):
-                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],500,1,prog=prog)
-                X0=X1[-1]
-                sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
-                count=count+1
-                if output:
-                    print(count,sol.message, success, flush=True)
-            if success>0 and sol.success and np.min(sol.x)>0:
-                print('norm after searching:',np.linalg.norm(sols[m]-sol.x))
-
-            sols[m]=sol.x
-            return sols[:m+1],evals[:m+1]
+            return sols[:m],evals[:m]
+            # count=0
+            # success=1
+            # sol.success=False
+            # X0=X0*(1+(np.random.random(size=n)-0.5)) #perturb ic
+            # while (not sol.success) and (count<100) and (success>0) and (np.min(X0)>0):
+            #     X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],1000,1,prog=prog)
+            #     X0=X1[-1]
+            #     sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
+            #     count=count+1
+            #     if output:
+            #         print(count,sol.message, success, flush=True)
+            # if success>0 and sol.success and np.min(sol.x)>0:
+            #     print('norm after searching:',np.linalg.norm(sols[m]-sol.x))
+            #     sols[m]=sol.x
+            #     return sols[:m+1],evals[:m+1]
+            # else:
+            #     if output:
+            #         print('failed - no fixed points?')
+            #     return sols[:m],evals[:m]
 
         #estimate new solution from jacobian
         dX=-np.linalg.solve(jac(sols[m],eta, nu, k, XD1s[m], XD2s[m]),np.diff(XD1s,axis=0)[0])
