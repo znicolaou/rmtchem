@@ -7,6 +7,7 @@ import argparse
 import sys
 from progressbar import *
 from scipy.optimize import root
+import networkx as nx
 
 def get_network(n,nr):
     eta=np.zeros((2*nr,n))
@@ -75,6 +76,8 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
         prog=True
 
     for m in range(steps):
+        if output:
+            print(m,end='\t\r')
         sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
 
         if sol.success:
@@ -154,8 +157,27 @@ if __name__ == "__main__":
     np.random.seed(seed)
     d1s=np.arange(d1min,d1max,(d1max-d1min)/steps)
 
+    #We should find the lcc of the network and discard the rest.
     start=timeit.default_timer()
     eta,nu,k,G=get_network(n,nr)
+
+    adj=np.zeros((n,n))
+    for r in range(2*nr):
+        reac=np.where(eta[r]>0)[0]
+        prod=np.where(nu[r]>0)[0]
+        for i in reac:
+            for j in prod:
+                adj[i,j]=1
+            #if species are both reactants, they affect rates of change of each other
+            for j in reac:
+                adj[i,j]=1
+    g=nx.convert_matrix.from_numpy_matrix(adj)
+    lcc=np.array(list(max(nx.connected_components(g), key=len)))
+    n=len(lcc)
+    eta=eta[:,lcc]
+    nu=nu[:,lcc]
+    G=G[lcc]
+
     X0=np.exp(-G)
     inds=np.argsort(np.exp(-G))[:nd]
     scales=np.exp(-G[inds])
