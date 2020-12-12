@@ -89,7 +89,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
             success=1
             X0=X0*(1+(np.random.random(size=n)-0.5)) #perturb ic
             while (not sol.success) and (count<100) and (success>0) and (np.min(X0)>0):
-                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],1000,1,prog=prog)
+                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],1000,0.1,prog=prog)
                 X0=X1[-1]
                 sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
                 count=count+1
