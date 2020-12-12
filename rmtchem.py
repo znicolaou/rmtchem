@@ -151,10 +151,6 @@ if __name__ == "__main__":
 
     start=timeit.default_timer()
     eta,nu,k,G=get_network(n,nr)
-    if np.min(np.max(eta,axis=0)+np.max(nu,axis=0)) < 1:
-        stop=timeit.default_timer()
-        print('%.3f\t%i\t%i\t%.3e\t%.3e'%(stop-start, seed, 0, -1.0, -1.0), flush=True)
-        quit()
     X0=np.exp(-G)
     inds=np.argsort(np.exp(-G))[:nd]
     scales=np.exp(-G[inds])
@@ -164,7 +160,13 @@ if __name__ == "__main__":
     for m in range(steps):
         XD1s[m,inds]=d1s[m]*d0*scales
         XD2s[m,inds]=d0
-    Xs1,evals1,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
+    bif=0
+    if np.min(np.max(eta,axis=0)+np.max(nu,axis=0)) < 1:
+        stop=timeit.default_timer()
+        Xs=np.array([])
+        evals=np.array([])
+    else:
+        Xs1,evals1,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     stop=timeit.default_timer()
     print('%.3f\t%i\t%i'%(stop-start, seed, bif), flush=True)
@@ -174,8 +176,8 @@ if __name__ == "__main__":
     file.close()
 
     if output or (bif != 0) :
-        np.save(filebase+'Xs.npy',Xs1[::skip])
-        np.save(filebase+'evals.npy',evals1[::skip])
+        np.save(filebase+'Xs.npy',Xs[::skip])
+        np.save(filebase+'evals.npy',evals[::skip])
 
 
     # mmax=len(evals1)
