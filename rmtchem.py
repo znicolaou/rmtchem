@@ -166,7 +166,7 @@ if __name__ == "__main__":
         Xs=np.array([])
         evals=np.array([])
     else:
-        Xs1,evals1,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
+        Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     stop=timeit.default_timer()
     print('%.3f\t%i\t%i'%(stop-start, seed, bif), flush=True)
