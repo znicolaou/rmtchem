@@ -165,7 +165,7 @@ if __name__ == "__main__":
     for m in range(steps):
         XD1s[m,inds]=d1s[m]*d0*scales
         XD2s[m,inds]=d0
-    bif=0
+    bif=-1
     if np.min(np.max(eta,axis=0)+np.max(nu,axis=0)) < 1:
         stop=timeit.default_timer()
         Xs=np.array([])
@@ -180,7 +180,7 @@ if __name__ == "__main__":
     print('%.3f\t%i\t%i'%(stop-start, seed, bif), file=file)
     file.close()
 
-    if output or (bif != 0) :
+    if output or (bif > 0) :
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
 
