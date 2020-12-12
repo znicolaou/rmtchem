@@ -39,7 +39,7 @@ def jac(X,eta,nu,k,XD1,XD2):
     return -np.diag(XD2)+np.tensordot(np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]),nu/X,axes=1)
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
+    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':X0})
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
     n=len(X0)
@@ -48,7 +48,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
         pbar=ProgressBar(widgets=['Integration: ', Percentage(),Bar(), ' ', ETA()], maxval=t1)
         pbar.start()
     Xs=np.zeros((int(t1/dt),n))
-    rode=ode(func).set_integrator('lsoda',rtol=1e-6,atol=1e-6,max_step=dt)
+    rode=ode(func).set_integrator('lsoda',rtol=1e-6,atol=1e-12,max_step=dt)
     rode.set_initial_value(X0, 0)
     rode.set_f_params(eta, nu, k, XD1, XD2)
     for n in range(int(t1/dt)):
@@ -77,59 +77,17 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
     for m in range(steps):
         sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
 
-        if sol.success and np.min(sol.x)>0:
+        if sol.success:
             sols[m]=sol.x
             evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
+            if(np.max(np.real(evals[m]))>0):
+                if output:
+                    print('hopf bifurcation!',m)
+                return sols[:m],evals[:m],1
         else:
             if output:
-                print('saddle-node bifurcation! Looking for new branch.',m)
-                #if we have a transcritical bifurcation, we will not find a new solution branch
-                #In this case, the multiplicity of the zero eigenvalue should be >1
-            count=0
-            success=1
-            X0=X0*(1+(np.random.random(size=n)-0.5)) #perturb ic
-            while (not sol.success) and (count<100) and (success>0) and (np.min(X0)>0):
-                X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],1000,0.1,prog=prog)
-                X0=X1[-1]
-                sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
-                count=count+1
-                if output:
-                    print(count,sol.message, success, flush=True)
-            if success>0 and sol.success and np.min(sol.x)>0:
-                if output:
-                    print('new branch found')
-                sols[m]=sol.x
-                evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
-                return sols[:m+1],evals[:m+1]
-            else:
-                if output:
-                    print('failed - no fixed points?')
-                return sols[:m],evals[:m]
-
-
-        if(np.max(np.real(evals[m]))>0):
-            if output:
-                print('hopf bifurcation!',m)
-            return sols[:m],evals[:m]
-            # count=0
-            # success=1
-            # sol.success=False
-            # X0=X0*(1+(np.random.random(size=n)-0.5)) #perturb ic
-            # while (not sol.success) and (count<100) and (success>0) and (np.min(X0)>0):
-            #     X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],1000,1,prog=prog)
-            #     X0=X1[-1]
-            #     sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
-            #     count=count+1
-            #     if output:
-            #         print(count,sol.message, success, flush=True)
-            # if success>0 and sol.success and np.min(sol.x)>0:
-            #     print('norm after searching:',np.linalg.norm(sols[m]-sol.x))
-            #     sols[m]=sol.x
-            #     return sols[:m+1],evals[:m+1]
-            # else:
-            #     if output:
-            #         print('failed - no fixed points?')
-            #     return sols[:m],evals[:m]
+                print('saddle-node bifurcation! ',m)
+            return sols[:m],evals[:m],2
 
         #estimate new solution from jacobian
         dX=-np.linalg.solve(jac(sols[m],eta, nu, k, XD1s[m], XD2s[m]),np.diff(XD1s,axis=0)[0])
@@ -140,8 +98,8 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
         #We could adapt step size in principle...
         if output and np.max(np.abs(dX/sols[m])) > 1e-1:
             print("step size large",m,np.max(np.abs((X0-sols[m])/X0)), flush=True)
+    return sols,evals,0
 
-    return sols,evals
 
 def hysteresis (X0, eta, nu, k, XD1s, XD2s):
     n=len(X0)
@@ -195,7 +153,7 @@ if __name__ == "__main__":
     eta,nu,k,G=get_network(n,nr)
     if np.min(np.max(eta,axis=0)+np.max(nu,axis=0)) < 1:
         stop=timeit.default_timer()
-        print('%.3f\t%i\t%.3e\t%.3e'%(stop-start, seed, -1.0, -1.0), flush=True)
+        print('%.3f\t%i\t%i\t%.3e\t%.3e'%(stop-start, seed, 0, -1.0, -1.0), flush=True)
         quit()
     X0=np.exp(-G)
     inds=np.argsort(np.exp(-G))[:nd]
@@ -206,21 +164,44 @@ if __name__ == "__main__":
     for m in range(steps):
         XD1s[m,inds]=d1s[m]*d0*scales
         XD2s[m,inds]=d0
-    Xs1,Xs2,evals1,evals2=hysteresis(X0, eta, nu, k, XD1s, XD2s)
+    Xs1,evals1,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
-    mmax=len(evals1)
-    mevals1=np.array([np.max(np.real(evals1[m])) for m in range(mmax)])
-    mevals2=np.array([np.max(np.real(evals2[m])) for m in range(mmax)])
     stop=timeit.default_timer()
-    print('%.3f\t%i\t%i\t%.3e\t%.3e'%(stop-start, seed, mmax, np.max(mevals1-mevals2), np.max(mevals1)), flush=True)
+    print('%.3f\t%i\t%i'%(stop-start, seed, bif), flush=True)
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    #We should indicate the bifurcation type in the out file here.
-    print('%.3f\t%i\t%.3e\t%.3e'%(stop-start, mmax, np.max(mevals1-mevals2), np.max(mevals1)), file=file)
+    print('%.3f\t%i\t%i'%(stop-start, seed, bif), file=file)
     file.close()
 
-    if output or (np.max(np.abs(mevals1-mevals2))>1e-2 or np.max(mevals1)>0) :
-        np.save(filebase+'Xs1.npy',Xs1[::skip])
-        np.save(filebase+'Xs2.npy',Xs2[::skip])
-        np.save(filebase+'evals1.npy',evals1[::skip])
-        np.save(filebase+'evals2.npy',evals2[::skip])
+    if output or (bif != 0) :
+        np.save(filebase+'Xs.npy',Xs1[::skip])
+        np.save(filebase+'evals.npy',evals1[::skip])
+
+
+    # mmax=len(evals1)
+    # Xs1,Xs2,evals1,evals2=hysteresis(X0, eta, nu, k, XD1s, XD2s)
+    # mevals1=np.array([np.max(np.real(evals1[m])) for m in range(mmax)])
+    # mevals2=np.array([np.max(np.real(evals2[m])) for m in range(mmax)])
+    # print('%.3f\t%i\t%i\t%.3e\t%.3e'%(stop-start, seed, mmax, np.max(mevals1-mevals2), np.max(mevals1)), flush=True)
+    # if output or (np.max(np.abs(mevals1-mevals2))>1e-2 or np.max(mevals1)>0) :
+
+    # count=0
+    # success=1
+    # X0=X0*(1+(np.random.random(size=n)-0.5)*1e-2) #perturb ic
+    # while (not sol.success) and (count<10) and (success>0) and (np.min(X0)>0):
+    #     X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],1000,0.1,prog=prog)
+    #     X0=X1[-1]
+    #     sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
+    #     count=count+1
+    #     if output:
+    #         print(count,sol.message, success, flush=True)
+    # if success>0 and sol.success and np.min(sol.x)>0:
+    #     if output:
+    #         print('new branch found')
+    #     sols[m]=sol.x
+    #     evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
+    #     return sols[:m+1],evals[:m+1]
+    # else:
+    #     if output:
+    #         print('failed - no fixed points?')
+    #     return sols[:m],evals[:m]
