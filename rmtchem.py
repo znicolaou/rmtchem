@@ -208,10 +208,10 @@ if __name__ == "__main__":
         Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     stop=timeit.default_timer()
-    print('%.3f\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif), flush=True)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif), flush=True)
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif), file=file)
     file.close()
 
     if output or (bif > 0) :
