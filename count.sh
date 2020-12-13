@@ -1,0 +1,1 @@
+for n in {50,100,200}; do for c in {2,3,4}; do for d in {25,10,5}; do tail -q -n1 data/${n}/${c}/${d}/*out.dat | awk 'BEGIN{t=0;h=0;s=0}{if($3==0){t++};if ($3==1){h++}; if($3==2){s++};}END{print h/t,s/t}' > ${n}_${c}_${d}.txt; done; done; done
