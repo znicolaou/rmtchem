@@ -30,6 +30,30 @@ def get_network(n,nr):
         k[2*i+1]=k[2*i]*K
     return eta,nu,k,G
 
+def get_drive(eta,nu,k,G,d1min,d1max,steps):
+    d1s=np.arange(d1min,d1max,(d1max-d1min)/steps)
+    n=len(G)
+    inds=np.random.choice(np.arange(n),size=nd,replace=False)
+    scales=np.exp(-G[inds])
+
+    XD1s=np.zeros((steps,n))
+    XD2s=np.zeros((steps,n))
+    for m in range(steps):
+        XD1s[m,inds]=d1s[m]*d0*scales
+        XD2s[m,inds]=d0
+
+    etatot=np.zeros(n,dtype=int)
+    nutot=np.zeros(n,dtype=int)
+    for rind in range(nr):
+        if (k[2*rind]>k[2*rind+1]):
+            etatot=etatot+eta[2*rind]
+            nutot=nutot+nu[2*rind]
+        else:
+            etatot=etatot+eta[2*rind]
+            nutot=nutot+nu[2*rind]
+
+    return XD1s,XD2s,np.sum(nutot[inds]),np.sum(etatot[inds])
+
 def rates(X,eta,nu,k):
     return k*np.product(X**nu,axis=1)
 
@@ -135,9 +159,7 @@ if __name__ == "__main__":
     d0=args.d0
     d1min=1
     d1max=args.dmax
-
     np.random.seed(seed)
-    d1s=np.arange(d1min,d1max,(d1max-d1min)/steps)
 
     #We should find the lcc of the network and discard the rest.
     start=timeit.default_timer()
@@ -161,25 +183,27 @@ if __name__ == "__main__":
     G=G[lcc]
 
     X0=np.exp(-G)
-    inds=np.argsort(np.exp(-G))[:nd]
-    scales=np.exp(-G[inds])
 
     s1=0
     s2=0
     evals,evecs=np.linalg.eig(jac(X0,eta, nu, k, np.zeros(n), np.zeros(n)))
-    print(np.min(np.abs(evals)))
     if np.min(np.abs(evals))<1e-8:
         s1=1
     evals,evecs=np.linalg.eig(adj[lcc][:,lcc])
     if np.min(np.abs(evals))<1e-8:
         s2=1
 
-
-    XD1s=np.zeros((steps,n))
-    XD2s=np.zeros((steps,n))
-    for m in range(steps):
-        XD1s[m,inds]=d1s[m]*d0*scales
-        XD2s[m,inds]=d0
+    #Define a getdrive function to pick inds generate XD1s and XD2s and quanitfy reactivity of inds
+    # inds=np.argsort(np.exp(-G))[:nd]
+    # inds=np.random.choice(np.arange(n),size=nd,replace=False)
+    # scales=np.exp(-G[inds])
+    #
+    # XD1s=np.zeros((steps,n))
+    # XD2s=np.zeros((steps,n))
+    # for m in range(steps):
+    #     XD1s[m,inds]=d1s[m]*d0*scales
+    #     XD2s[m,inds]=d0
+    XD1s,XD2s,nreac,nprod=get_drive(eta,nu,k,G,d1min,d1max,steps)
     bif=-1
     Xs=np.array([])
     evals=np.array([])
@@ -188,10 +212,10 @@ if __name__ == "__main__":
         Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     stop=timeit.default_timer()
-    print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif), flush=True)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod), flush=True)
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod), file=file)
     file.close()
 
     if output:
