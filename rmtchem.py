@@ -108,26 +108,6 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
             print("step size large",m,np.max(np.abs((X0-sols[m])/X0)), flush=True)
     return sols,evals,0
 
-
-def hysteresis (X0, eta, nu, k, XD1s, XD2s):
-    n=len(X0)
-    steps=len(XD1s)
-    evals1=np.zeros((steps,n),dtype=np.complex128)
-    evals2=np.zeros((steps,n),dtype=np.complex128)
-    if output:
-        print('forward', flush=True)
-    Xs1,evals1=quasistatic(X0, eta, nu, k, XD1s, XD2s)
-    evals2=np.flip(evals1.copy())
-    mmax=len(evals1)
-    XD3s=np.flip(XD1s[:mmax],axis=0)
-    XD4s=np.flip(XD2s[:mmax],axis=0)
-    if output:
-        print('reverse', flush=True)
-    Xs2,evals3=quasistatic(Xs1[mmax-1], eta, nu, k, XD3s, XD4s)
-    mmin=len(evals3)
-    evals2[:mmin]=evals3
-    return Xs1, np.flip(Xs2,axis=0), evals1, np.flip(evals2,axis=0)
-
 if __name__ == "__main__":
     #Command line arguments
     parser = argparse.ArgumentParser(description='Noisy pendula.')
@@ -214,9 +194,29 @@ if __name__ == "__main__":
     print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif), file=file)
     file.close()
 
-    if output or (bif > 0) :
+    if output:
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
+
+#TODO: give some option to find reverse branches and quasistatic to?
+# def hysteresis (X0, eta, nu, k, XD1s, XD2s):
+#     n=len(X0)
+#     steps=len(XD1s)
+#     evals1=np.zeros((steps,n),dtype=np.complex128)
+#     evals2=np.zeros((steps,n),dtype=np.complex128)
+#     if output:
+#         print('forward', flush=True)
+#     Xs1,evals1=quasistatic(X0, eta, nu, k, XD1s, XD2s)
+#     evals2=np.flip(evals1.copy())
+#     mmax=len(evals1)
+#     XD3s=np.flip(XD1s[:mmax],axis=0)
+#     XD4s=np.flip(XD2s[:mmax],axis=0)
+#     if output:
+#         print('reverse', flush=True)
+#     Xs2,evals3=quasistatic(Xs1[mmax-1], eta, nu, k, XD3s, XD4s)
+#     mmin=len(evals3)
+#     evals2[:mmin]=evals3
+#     return Xs1, np.flip(Xs2,axis=0), evals1, np.flip(evals2,axis=0)
 
 
     # mmax=len(evals1)
