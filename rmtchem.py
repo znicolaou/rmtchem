@@ -141,12 +141,14 @@ if __name__ == "__main__":
     parser.add_argument("--steps", type=int, default=5000, dest='steps', help='Steps for driving')
     parser.add_argument("--skip", type=int, default=10, dest='skip', help='Steps to skip for output')
     parser.add_argument("--output", type=int, default=0, dest='output', help='1 for matrix output, 0 for none')
+    parser.add_argument("--quasistatic", type=int, default=1, dest='quasi', help='1 for quasistatic')
     args = parser.parse_args()
     n=args.n
     nr=args.nr
     nd=args.nd
     filebase=args.filebase
     output=args.output
+    quasi=args.quasi
     seed=args.seed
     steps=args.steps
     skip=args.skip
@@ -182,24 +184,34 @@ if __name__ == "__main__":
     inds=np.argsort(np.exp(-G))[:nd]
     scales=np.exp(-G[inds])
 
+    s1=0
+    s2=0
+    evals,evecs=np.linalg.eig(jac(X0,eta, nu, k, np.zeros(n), np.zeros(n)))
+    print(np.min(np.abs(evals)))
+    if np.min(np.abs(evals))<1e-8:
+        s1=1
+    evals,evecs=np.linalg.eig(adj[lcc][:,lcc])
+    if np.min(np.abs(evals))<1e-8:
+        s2=1
+
+
     XD1s=np.zeros((steps,n))
     XD2s=np.zeros((steps,n))
     for m in range(steps):
         XD1s[m,inds]=d1s[m]*d0*scales
         XD2s[m,inds]=d0
     bif=-1
-    if np.min(np.max(eta,axis=0)+np.max(nu,axis=0)) < 1:
-        stop=timeit.default_timer()
-        Xs=np.array([])
-        evals=np.array([])
-    else:
+    Xs=np.array([])
+    evals=np.array([])
+
+    if quasi:
         Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     stop=timeit.default_timer()
-    print('%.3f\t%i\t%i'%(stop-start, seed, bif), flush=True)
+    print('%.3f\t%i\t%i\t%i\t%i'%(stop-start, seed, s1, s2, bif), flush=True)
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i'%(stop-start, seed, bif), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i'%(stop-start, seed, s1, s2, bif), file=file)
     file.close()
 
     if output or (bif > 0) :
