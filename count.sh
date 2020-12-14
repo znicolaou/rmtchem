@@ -1,1 +1,14 @@
-for n in {50,100,200}; do for c in {2,3,4}; do for d in {25,10,5}; do tail -q -n1 data/${n}/${c}/${d}/*out.dat | awk 'BEGIN{t=0;h=0;s=0}{if($6==0){t++;tr+=$7;tp+=$8};if ($6==1){h++;hr+=$7;hp+=$8}; if($3==2){s++;sr+=$7;sp+=$8};}END{print h/t,s/t,tr/t,tp/t,hr/h,hp/h,sr/s,sp/s}' > ${n}_${c}_${d}.txt; done; done; done
+ns={50,100,200}
+
+for n in $ns; do
+  echo $n
+  if [ -f data/${n}_counts.txt ]; then rm data/${n}_counts.txt; fi
+  cs=`ls data/${n}/`
+  for c in $cs; do
+    ds=`ls data/${n}/${c}`
+    for c in $cs; do
+      echo $n $c $d
+      echo $n $c `tail -n1 -q data/sing/${n}/${c}/* | awk '{n+=$3; if ($4>0){s1++}; if ($5>0){s2++}; if($6==0){t++;tr+=$7;tp+=$8};if ($6==1){h++;hr+=$7;hp+=$8}; if($3==2){s++;sr+=$7;sp+=$8 }END{print(s1/t,s2/t,n/t)}'` >> data/${n}_scounts.txt
+    done
+  done
+done
