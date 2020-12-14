@@ -12,3 +12,5 @@ for n in $ns; do
     done
   done
 done
+
+for n in {50,100,200}; do cs=`ls data/$n`; for c in $cs; do ds=`ls data/$n/$c`; for d in $ds; do tail -qn1 data/${n}/${c}/${d}/* > data/${n}_${c}_${d}.txt; done; done; done
