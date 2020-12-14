@@ -202,12 +202,12 @@ if __name__ == "__main__":
         Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     stop=timeit.default_timer()
-    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG), flush=True)
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG, len(Xs)), file=file)
     file.close()
 
     if output:
+        print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG, len(Xs)), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
