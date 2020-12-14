@@ -52,7 +52,7 @@ def get_drive(eta,nu,k,G,d1min,d1max,steps):
             etatot=etatot+eta[2*rind]
             nutot=nutot+nu[2*rind]
 
-    return XD1s,XD2s,np.sum(nutot[inds]),np.sum(etatot[inds])
+    return XD1s,XD2s,np.sum(nutot[inds]),np.sum(etatot[inds]), np.sum(G[inds])/np.sum(G)
 
 def rates(X,eta,nu,k):
     return k*np.product(X**nu,axis=1)
@@ -193,17 +193,7 @@ if __name__ == "__main__":
     if np.min(np.abs(evals))<1e-8:
         s2=1
 
-    #Define a getdrive function to pick inds generate XD1s and XD2s and quanitfy reactivity of inds
-    # inds=np.argsort(np.exp(-G))[:nd]
-    # inds=np.random.choice(np.arange(n),size=nd,replace=False)
-    # scales=np.exp(-G[inds])
-    #
-    # XD1s=np.zeros((steps,n))
-    # XD2s=np.zeros((steps,n))
-    # for m in range(steps):
-    #     XD1s[m,inds]=d1s[m]*d0*scales
-    #     XD2s[m,inds]=d0
-    XD1s,XD2s,nreac,nprod=get_drive(eta,nu,k,G,d1min,d1max,steps)
+    XD1s,XD2s,nreac,nprod,dG=get_drive(eta,nu,k,G,d1min,d1max,steps)
     bif=-1
     Xs=np.array([])
     evals=np.array([])
@@ -212,61 +202,12 @@ if __name__ == "__main__":
         Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
 
     stop=timeit.default_timer()
-    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod), flush=True)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG), flush=True)
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG), file=file)
     file.close()
 
     if output:
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
-
-#TODO: give some option to find reverse branches and quasistatic to?
-# def hysteresis (X0, eta, nu, k, XD1s, XD2s):
-#     n=len(X0)
-#     steps=len(XD1s)
-#     evals1=np.zeros((steps,n),dtype=np.complex128)
-#     evals2=np.zeros((steps,n),dtype=np.complex128)
-#     if output:
-#         print('forward', flush=True)
-#     Xs1,evals1=quasistatic(X0, eta, nu, k, XD1s, XD2s)
-#     evals2=np.flip(evals1.copy())
-#     mmax=len(evals1)
-#     XD3s=np.flip(XD1s[:mmax],axis=0)
-#     XD4s=np.flip(XD2s[:mmax],axis=0)
-#     if output:
-#         print('reverse', flush=True)
-#     Xs2,evals3=quasistatic(Xs1[mmax-1], eta, nu, k, XD3s, XD4s)
-#     mmin=len(evals3)
-#     evals2[:mmin]=evals3
-#     return Xs1, np.flip(Xs2,axis=0), evals1, np.flip(evals2,axis=0)
-
-
-    # mmax=len(evals1)
-    # Xs1,Xs2,evals1,evals2=hysteresis(X0, eta, nu, k, XD1s, XD2s)
-    # mevals1=np.array([np.max(np.real(evals1[m])) for m in range(mmax)])
-    # mevals2=np.array([np.max(np.real(evals2[m])) for m in range(mmax)])
-    # print('%.3f\t%i\t%i\t%.3e\t%.3e'%(stop-start, seed, mmax, np.max(mevals1-mevals2), np.max(mevals1)), flush=True)
-    # if output or (np.max(np.abs(mevals1-mevals2))>1e-2 or np.max(mevals1)>0) :
-
-    # count=0
-    # success=1
-    # X0=X0*(1+(np.random.random(size=n)-0.5)*1e-2) #perturb ic
-    # while (not sol.success) and (count<10) and (success>0) and (np.min(X0)>0):
-    #     X1,success=integrate(X0,eta,nu,k,XD1s[m],XD2s[m],1000,0.1,prog=prog)
-    #     X0=X1[-1]
-    #     sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
-    #     count=count+1
-    #     if output:
-    #         print(count,sol.message, success, flush=True)
-    # if success>0 and sol.success and np.min(sol.x)>0:
-    #     if output:
-    #         print('new branch found')
-    #     sols[m]=sol.x
-    #     evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
-    #     return sols[:m+1],evals[:m+1]
-    # else:
-    #     if output:
-    #         print('failed - no fixed points?')
-    #     return sols[:m],evals[:m]
