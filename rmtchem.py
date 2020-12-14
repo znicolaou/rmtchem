@@ -52,7 +52,7 @@ def get_drive(eta,nu,k,G,d1min,d1max,steps):
             etatot=etatot+eta[2*rind]
             nutot=nutot+nu[2*rind]
 
-    return XD1s,XD2s,np.sum(nutot[inds]),np.sum(etatot[inds]), np.sum(G[inds]-np.min(G))
+    return XD1s,XD2s,np.sum(nutot[inds]),np.sum(etatot[inds]), np.sum(G[inds]-np.min(G))/(np.max(G)-np.min(G))
 
 def rates(X,eta,nu,k):
     return k*np.product(X**nu,axis=1)
