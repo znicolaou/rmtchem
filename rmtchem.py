@@ -30,9 +30,10 @@ def get_network(n,nr):
         k[2*i+1]=k[2*i]*K
     return eta,nu,k,G
 
-def get_drive(eta,nu,k,G,d1min,d1max,steps):
+def get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd):
     d1s=np.arange(d1min,d1max,(d1max-d1min)/steps)
     n=len(G)
+    nr=int(len(k)/2)
     inds=np.random.choice(np.arange(n),size=nd,replace=False)
     scales=np.exp(-G[inds])
 
@@ -64,7 +65,8 @@ def jac(X,eta,nu,k,XD1,XD2):
     return -np.diag(XD2)+np.tensordot(np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]),nu/X,axes=1)
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':X0})
+    # return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':X0})
+    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
     n=len(X0)
@@ -90,7 +92,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
     return Xs,success
 
 #continue solution until a bifurcation. Return solutions and final step.
-def quasistatic (X0, eta, nu, k, XD1s, XD2s):
+def quasistatic (X0, eta, nu, k, XD1s, XD2s, output=True, stop=True):
     n=len(X0)
     steps=len(XD1s)
     sols=np.zeros((steps,n))
@@ -107,7 +109,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s):
         if sol.success:
             sols[m]=sol.x
             evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
-            if np.max(np.real(evals[m]))>0:
+            if np.max(np.real(evals[m]))>0 and stop:
                 if np.abs(np.imag(evals[m,np.argmax(np.real(evals[m]))]))>0:
                     if output:
                         print('hopf bifurcation!',m)
@@ -193,21 +195,35 @@ if __name__ == "__main__":
     if np.min(np.abs(evals))<1e-8:
         s2=1
 
-    XD1s,XD2s,nreac,nprod,dG=get_drive(eta,nu,k,G,d1min,d1max,steps)
+    XD1s,XD2s,nreac,nprod,dG=get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd)
+
+    #When we define the network, we should just set the forward reaction appropriately
+    etatot=np.zeros(n,dtype=int)
+    nutot=np.zeros(n,dtype=int)
+    for rind in range(nr):
+        if (k[2*rind]>k[2*rind+1]):
+            etatot=etatot+eta[2*rind]
+            nutot=nutot+nu[2*rind]
+        else:
+            etatot=etatot+eta[2*rind]
+            nutot=nutot+nu[2*rind]
+
+    nreactot=np.sum(nutot)
+    nprodtot=np.sum(etatot)
     bif=-1
     Xs=np.array([])
     evals=np.array([])
 
     if quasi:
-        Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s)
+        Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s, output)
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG, len(Xs)), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG, len(Xs),nreactot,nprodtot), file=file)
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG, len(Xs)), flush=True)
+        print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG, len(Xs),nreactot,nprodtot), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
