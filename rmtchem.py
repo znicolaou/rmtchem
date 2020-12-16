@@ -43,17 +43,7 @@ def get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd):
         XD1s[m,inds]=d1s[m]*d0*scales
         XD2s[m,inds]=d0
 
-    etatot=np.zeros(n,dtype=int)
-    nutot=np.zeros(n,dtype=int)
-    for rind in range(nr):
-        if (k[2*rind]>k[2*rind+1]):
-            etatot=etatot+eta[2*rind]
-            nutot=nutot+nu[2*rind]
-        else:
-            etatot=etatot+eta[2*rind]
-            nutot=nutot+nu[2*rind]
-
-    return XD1s,XD2s,np.sum(nutot[inds]),np.sum(etatot[inds]), np.sum(G[inds]-np.min(G))/(np.max(G)-np.min(G))
+    return XD1s, XD2s, inds
 
 def rates(X,eta,nu,k):
     return k*np.product(X**nu,axis=1)
@@ -195,21 +185,8 @@ if __name__ == "__main__":
     if np.min(np.abs(evals))<1e-8:
         s2=1
 
-    XD1s,XD2s,nreac,nprod,dG=get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd)
+    XD1s,XD2s,inds=get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd)
 
-    #When we define the network, we should just set the forward reaction appropriately
-    etatot=np.zeros(n,dtype=int)
-    nutot=np.zeros(n,dtype=int)
-    for rind in range(nr):
-        if (k[2*rind]>k[2*rind+1]):
-            etatot=etatot+eta[2*rind]
-            nutot=nutot+nu[2*rind]
-        else:
-            etatot=etatot+eta[2*rind]
-            nutot=nutot+nu[2*rind]
-
-    nreactot=np.sum(nutot)
-    nprodtot=np.sum(etatot)
     bif=-1
     Xs=np.array([])
     evals=np.array([])
@@ -217,13 +194,26 @@ if __name__ == "__main__":
     if quasi:
         Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s, output)
 
+    m=len(Xs)-1
+    rs=rates(Xs[m],eta,nu,k)
+    #Determine forward direction and add the
+    etatot=np.zeros(n)
+    nutot=np.zeros(n)
+    for rind in range(nr):
+        if (rs[2*rind]>rs[2*rind+1]):
+            etatot=etatot+eta[2*rind]
+            nutot=nutot+nu[2*rind]
+        else:
+            etatot=etatot+eta[2*rind]
+            nutot=nutot+nu[2*rind]
+
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG, len(Xs),nreactot,nprodtot), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f'%(stop-start, seed, n, s1, s2, bif, m, np.mean(etatot), np.mean(nutot), np.mean(etatot[inds]), np.mean(nutot[inds])), file=file)
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%i\t%i\t%i'%(stop-start, seed, n, s1, s2, bif, nreac, nprod, dG, len(Xs),nreactot,nprodtot), flush=True)
+        print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f'%(stop-start, seed, n, s1, s2, bif, m, np.mean(etatot), np.mean(nutot), np.mean(etatot[inds]), np.mean(nutot[inds])), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
