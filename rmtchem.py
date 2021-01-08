@@ -138,6 +138,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip", type=int, default=10, dest='skip', help='Steps to skip for output')
     parser.add_argument("--output", type=int, default=0, dest='output', help='1 for matrix output, 0 for none')
     parser.add_argument("--quasistatic", type=int, default=1, dest='quasi', help='1 for quasistatic')
+    parser.add_argument("--rank", type=int, default=1, dest='rank', help='1 for rank calculation')
     args = parser.parse_args()
     n=args.n
     nr=args.nr
@@ -145,6 +146,7 @@ if __name__ == "__main__":
     filebase=args.filebase
     output=args.output
     quasi=args.quasi
+    rank=args.rank
     seed=args.seed
     steps=args.steps
     skip=args.skip
@@ -157,17 +159,11 @@ if __name__ == "__main__":
     start=timeit.default_timer()
     eta,nu,k,G=get_network(n,nr)
 
-    adj=np.zeros((n,n))
-    for r in range(2*nr):
-        reac=np.where(eta[r]>0)[0]
-        prod=np.where(nu[r]>0)[0]
-        for i in reac:
-            for j in prod:
-                adj[i,j]=1
-            #if species are both reactants, they affect rates of change of each other
-            for j in reac:
-                adj[i,j]=1
-    g=nx.convert_matrix.from_numpy_matrix(adj)
+    row,col=np.where(eta[::2]-nu[::2]!=0)
+    data=(eta[::2]-nu[::2])[row,col]
+    A=csr_matrix((data,(row,col)),shape=(2*nr,n),dtype=int)
+    adj=A.T.dot(A)
+    g=nx.convert_matrix.from_scipy_sparse_matrix(adj)
     lcc=np.array(list(max(nx.connected_components(g), key=len)))
     n=len(lcc)
     eta=eta[:,lcc]
@@ -175,15 +171,9 @@ if __name__ == "__main__":
     G=G[lcc]
 
     X0=np.exp(-G)
-
-    s1=0
-    s2=0
-    evals,evecs=np.linalg.eig(jac(X0,eta, nu, k, np.zeros(n), np.zeros(n)))
-    if np.min(np.abs(evals))<1e-8:
-        s1=1
-    evals,evecs=np.linalg.eig(adj[lcc][:,lcc])
-    if np.min(np.abs(evals))<1e-8:
-        s2=1
+    r=-1
+    if rank:
+        r=np.linalg.matrix_rank(adj.toarray()[np.ix_(lcc,lcc)])
 
     XD1s,XD2s,inds=get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd)
 
@@ -195,25 +185,27 @@ if __name__ == "__main__":
         Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s, output)
 
     m=len(Xs)-1
-    rs=rates(Xs[m],eta,nu,k)
-    #Determine forward direction and add the
     etatot=np.zeros(n)
     nutot=np.zeros(n)
-    for rind in range(nr):
-        if (rs[2*rind]>rs[2*rind+1]):
-            etatot=etatot+eta[2*rind]
-            nutot=nutot+nu[2*rind]
-        else:
-            etatot=etatot+eta[2*rind]
-            nutot=nutot+nu[2*rind]
+    if quasi:
+        rs=rates(Xs[m],eta,nu,k)
+        #Determine forward direction and sum the stochiometric coefficients
+        for rind in range(nr):
+            #We could also find the reaction flux and scales, np.sum(rs)
+            if (rs[2*rind]>rs[2*rind+1]):
+                etatot=etatot+eta[2*rind]
+                nutot=nutot+nu[2*rind]
+            else:
+                etatot=etatot+eta[2*rind]
+                nutot=nutot+nu[2*rind]
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f'%(stop-start, seed, n, s1, s2, bif, m, np.mean(etatot), np.mean(nutot), np.mean(etatot[inds]), np.mean(nutot[inds])), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, m, np.mean(etatot), np.mean(nutot), np.mean(etatot[inds]), np.mean(nutot[inds])), file=file)
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f'%(stop-start, seed, n, s1, s2, bif, m, np.mean(etatot), np.mean(nutot), np.mean(etatot[inds]), np.mean(nutot[inds])), flush=True)
+        print('%.3f\t%i\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, m, np.mean(etatot), np.mean(nutot), np.mean(etatot[inds]), np.mean(nutot[inds])), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
