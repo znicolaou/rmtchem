@@ -132,6 +132,7 @@ if __name__ == "__main__":
     parser.add_argument("--nr", type=int, default=20, dest='nr', help='Number of reactions')
     parser.add_argument("--nd", type=int, default=1, dest='nd', help='Number of drives')
     parser.add_argument("--dmax", type=float, default=100, dest='dmax', help='Maximum drive')
+    parser.add_argument("--type", type=int, default=0, dest='type', help='Type of adjacency matrix. 0 for chemical networks, 1 for ER networks.')
     parser.add_argument("--d0", type=float, default=1e3, dest='d0', help='Drive timescale')
     parser.add_argument("--seed", type=int, default=1, dest='seed', help='Random seed')
     parser.add_argument("--steps", type=int, default=5000, dest='steps', help='Steps for driving')
@@ -162,8 +163,15 @@ if __name__ == "__main__":
     row,col=np.where(eta[::2]-nu[::2]!=0)
     data=(eta[::2]-nu[::2])[row,col]
     A=csr_matrix((data,(row,col)),shape=(2*nr,n),dtype=int)
-    adj=A.T.dot(A)
-    g=nx.convert_matrix.from_scipy_sparse_matrix(adj)
+
+    if args.type==0:
+        adj=A.T.dot(A)
+        g=nx.convert_matrix.from_scipy_sparse_matrix(adj)
+
+    if args.type==1:
+        g=nx.gnm_random_graph(n,nr,seed=1)
+        adj=nx.adjacency_matrix(g)
+
     lcc=np.array(list(max(nx.connected_components(g), key=len)))
     n=len(lcc)
     eta=eta[:,lcc]
