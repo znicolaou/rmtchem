@@ -169,7 +169,7 @@ if __name__ == "__main__":
         g=nx.convert_matrix.from_scipy_sparse_matrix(adj)
 
     if args.type==1:
-        g=nx.gnm_random_graph(n,nr,seed=1)
+        g=nx.gnm_random_graph(n,nr,seed=seed)
         adj=nx.adjacency_matrix(g)
 
     lcc=np.array(list(max(nx.connected_components(g), key=len)))
