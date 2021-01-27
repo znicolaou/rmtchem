@@ -204,8 +204,8 @@ if __name__ == "__main__":
                 etatot=etatot+eta[2*rind]
                 nutot=nutot+nu[2*rind]
             else:
-                etatot=etatot+eta[2*rind]
-                nutot=nutot+nu[2*rind]
+                etatot=etatot+eta[2*rind+1]
+                nutot=nutot+nu[2*rind+1]
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
