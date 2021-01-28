@@ -126,7 +126,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s, output=True, stop=True):
 
 if __name__ == "__main__":
     #Command line arguments
-    parser = argparse.ArgumentParser(description='Noisy pendula.')
+    parser = argparse.ArgumentParser(description='Random chemical reaction networks.')
     parser.add_argument("--filebase", type=str, required=True, dest='filebase', help='Base string for file output')
     parser.add_argument("--n", type=int, default=10, dest='n', help='Number of species')
     parser.add_argument("--nr", type=int, default=20, dest='nr', help='Number of reactions')
