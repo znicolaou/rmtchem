@@ -160,11 +160,10 @@ if __name__ == "__main__":
     start=timeit.default_timer()
     eta,nu,k,G=get_network(n,nr)
 
-    row,col=np.where(eta[::2]-nu[::2]!=0)
-    data=(eta[::2]-nu[::2])[row,col]
-    A=csr_matrix((data,(row,col)),shape=(2*nr,n),dtype=int)
-
     if args.type==0:
+        row,col=np.where(eta[::2]-nu[::2]!=0)
+        data=(eta[::2]-nu[::2])[row,col]
+        A=csr_matrix((data,(row,col)),shape=(2*nr,n),dtype=int)
         adj=A.T.dot(A)
         g=nx.convert_matrix.from_scipy_sparse_matrix(adj)
 
