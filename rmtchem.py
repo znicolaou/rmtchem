@@ -9,7 +9,7 @@ from progressbar import *
 from scipy.optimize import root
 import networkx as nx
 
-def get_network(n,nr):
+def get_network(n,nr,na=0):
     eta=np.zeros((2*nr,n))
     nu=np.zeros((2*nr,n))
     k=np.zeros(2*nr)
@@ -18,10 +18,18 @@ def get_network(n,nr):
     for i in range(nr):
         reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
         products=np.random.choice(np.setdiff1d(np.arange(n),reactants),size=np.random.randint(1,4),replace=False)
+
         #forward
         eta[2*i,reactants]=np.random.randint(1,3,size=len(reactants))
         nu[2*i,products]=np.random.randint(1,3,size=len(products))
+
+        if i<na:
+            auto=np.random.choice(reactants)
+            nu[2*i,auto]=eta[2*i,auto]+1
+
         k[2*i]=np.random.random()
+        # k[2*i]=np.random.exponential()
+
         deltaG=np.sum(nu[2*i,products]*G[products])-np.sum(eta[2*i,reactants]*G[reactants])
         K=np.exp(-deltaG)
         #reverse
@@ -136,6 +144,7 @@ if __name__ == "__main__":
     parser.add_argument("--d0", type=float, default=1e3, dest='d0', help='Drive timescale')
     parser.add_argument("--seed", type=int, default=1, dest='seed', help='Random seed')
     parser.add_argument("--steps", type=int, default=5000, dest='steps', help='Steps for driving')
+    parser.add_argument("--na", type=int, default=0, dest='na', help='Number of autocatalytic reactions')
     parser.add_argument("--skip", type=int, default=10, dest='skip', help='Steps to skip for output')
     parser.add_argument("--output", type=int, default=0, dest='output', help='1 for matrix output, 0 for none')
     parser.add_argument("--quasistatic", type=int, default=1, dest='quasi', help='1 for quasistatic')
@@ -144,6 +153,7 @@ if __name__ == "__main__":
     n=args.n
     nr=args.nr
     nd=args.nd
+    na=args.na
     filebase=args.filebase
     output=args.output
     quasi=args.quasi
@@ -158,7 +168,7 @@ if __name__ == "__main__":
 
     #We should find the lcc of the network and discard the rest.
     start=timeit.default_timer()
-    eta,nu,k,G=get_network(n,nr)
+    eta,nu,k,G=get_network(n,nr,na)
 
     if args.type==0:
         row,col=np.where(eta[::2]-nu[::2]!=0)
@@ -178,9 +188,11 @@ if __name__ == "__main__":
     G=G[lcc]
 
     X0=np.exp(-G)
-    r=-1
+    r=n
     if rank:
         r=np.linalg.matrix_rank(adj.toarray()[np.ix_(lcc,lcc)])
+        if output:
+            print("rank is ", r, "lcc is ", n)
 
     XD1s,XD2s,inds=get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd)
 
@@ -188,13 +200,13 @@ if __name__ == "__main__":
     Xs=np.array([])
     evals=np.array([])
 
-    if quasi:
-        Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s, output)
-
     m=len(Xs)-1
     etatot=np.zeros(n)
     nutot=np.zeros(n)
-    if quasi:
+
+    if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
+        Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s, output)
+
         rs=rates(Xs[m],eta,nu,k)
         #Determine forward direction and sum the stochiometric coefficients
         for rind in range(nr):
