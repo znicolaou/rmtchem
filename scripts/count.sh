@@ -13,6 +13,9 @@ for n in $ns; do
       as=`ls -d ${filebase}/${n}/${c}/${d}/*/ | cut -d/ -f6`
       for a in $as; do
         echo $n $c $d $a
+        if [ -f $filebase/${n}_${c}_${d}_${a}.txt ]; then
+          rm $filebase/${n}_${c}_${d}_${a}.txt
+        fi
         tail -qn1 $filebase/${n}/${c}/${d}/${a}/* > $filebase/${n}_${c}_${d}_${a}.txt;
       done
     done
