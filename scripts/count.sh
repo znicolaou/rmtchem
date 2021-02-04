@@ -3,8 +3,8 @@ echo "usage ./count.sh filebase"
 exit
 fi
 filebase=$1
-ns="50"
 
+ns=`ls -d ${filebase}/*/ | cut -d/ -f3`
 for n in $ns; do
   cs=`ls -d ${filebase}/${n}/*/ | cut -d/ -f4`
   for c in $cs; do

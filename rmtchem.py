@@ -27,8 +27,8 @@ def get_network(n,nr,na=0):
             auto=np.random.choice(reactants)
             nu[2*i,auto]=eta[2*i,auto]+1
 
-        k[2*i]=np.random.random()
-        # k[2*i]=np.random.exponential()
+        # k[2*i]=np.random.random()
+        k[2*i]=np.random.exponential()
 
         deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
         K=np.exp(-deltaG)
