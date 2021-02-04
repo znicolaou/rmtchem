@@ -30,11 +30,11 @@ def get_network(n,nr,na=0):
         k[2*i]=np.random.random()
         # k[2*i]=np.random.exponential()
 
-        deltaG=np.sum(nu[2*i,products]*G[products])-np.sum(eta[2*i,reactants]*G[reactants])
+        deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
         K=np.exp(-deltaG)
         #reverse
-        nu[2*i+1,reactants]=eta[2*i,reactants]
-        eta[2*i+1,products]=nu[2*i,products]
+        nu[2*i+1]=eta[2*i]
+        eta[2*i+1]=nu[2*i]
         k[2*i+1]=k[2*i]*K
     return eta,nu,k,G
 
