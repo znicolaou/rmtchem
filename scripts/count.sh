@@ -11,8 +11,10 @@ for n in $ns; do
     ds=`ls -d ${filebase}/${n}/${c}/*/ | cut -d/ -f5`
     for d in $ds; do
       as=`ls -d ${filebase}/${n}/${c}/${d}/*/ | cut -d/ -f6`
-      echo $n $c $d $a
-      tail -qn1 $filebase/${n}/${c}/${d}/${a}/* > $filebase/${n}_${c}_${d}_${a}.txt;
+      for a in $as; do
+        echo $n $c $d $a
+        tail -qn1 $filebase/${n}/${c}/${d}/${a}/* > $filebase/${n}_${c}_${d}_${a}.txt;
+      done
     done
   done
 done
