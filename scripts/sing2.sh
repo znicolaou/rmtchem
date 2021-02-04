@@ -14,9 +14,9 @@ export OMP_NUM_THREADS=1
 procs=$SLURM_NTASKS
 ZGN_num=64
 ZGN_ns="64 512 4096"
-ZGN_cmin=0.05
-ZGN_cmax=0.5
-ZGN_dc=0.05
+ZGN_cmin=0.005
+ZGN_cmax=0.2
+ZGN_dc=0.005
 
 jid=$((SLURM_ARRAY_TASK_ID-1))
 

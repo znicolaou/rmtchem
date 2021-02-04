@@ -17,7 +17,7 @@ ZGN_steps=5000
 ZGN_ns="50 100"
 ZGN_cs="2 2.5 3"
 ZGN_ds="25 10 5"
-ZGN_as="0 0.1 0.2"
+ZGN_as="101 10 5"
 
 jid=$((SLURM_ARRAY_TASK_ID-1))
 
@@ -29,7 +29,7 @@ echo $n $c $d $a
 #nr=$((n*c))
 nr=`bc <<< "${n}*${c} / 1"`
 nd=$((n/d))
-na=$((nr*a))
+na=$((nr/a))
 
 ZGN_filebase0="data/hystereses/${n}/${c}/${d}/${a}"
 mkdir -p $ZGN_filebase0
