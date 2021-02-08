@@ -31,7 +31,7 @@ nd=`bc <<< "${n}*${d} / 1"`
 na=`bc <<< "${nr}*${a} / 1"`
 echo $n $nr $nd $na
 
-ZGN_filebase0="data/hystereses/${n}/${c}/${d}/${a}"
+ZGN_filebase0="data/hystereses2/${n}/${c}/${d}/${a}"
 mkdir -p $ZGN_filebase0
 
 for sid in `seq $ZGN_num`; do

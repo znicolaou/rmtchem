@@ -25,7 +25,8 @@ def get_network(n,nr,na=0):
 
         if i<na:
             auto=np.random.choice(reactants)
-            nu[2*i,auto]=eta[2*i,auto]+1
+            # nu[2*i,auto]=eta[2*i,auto]+1
+            nu[2*i,auto]=eta[2*i,auto]
 
         # k[2*i]=np.random.random()
         k[2*i]=np.random.exponential()
@@ -201,30 +202,16 @@ if __name__ == "__main__":
     evals=np.array([])
 
     m=len(Xs)-1
-    etatot=np.zeros(n)
-    nutot=np.zeros(n)
-
     if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
         Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s, output)
-
-        rs=rates(Xs[m],eta,nu,k)
-        #Determine forward direction and sum the stochiometric coefficients
-        for rind in range(nr):
-            #We could also find the reaction flux and scales, np.sum(rs)
-            if (rs[2*rind]>rs[2*rind+1]):
-                etatot=etatot+eta[2*rind]
-                nutot=nutot+nu[2*rind]
-            else:
-                etatot=etatot+eta[2*rind+1]
-                nutot=nutot+nu[2*rind+1]
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, m, np.mean(etatot), np.mean(nutot), np.mean(etatot[inds]), np.mean(nutot[inds])), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, r, bif, m), file=file)
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, m, np.mean(etatot), np.mean(nutot), np.mean(etatot[inds]), np.mean(nutot[inds])), flush=True)
+        print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, r, bif, m), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
