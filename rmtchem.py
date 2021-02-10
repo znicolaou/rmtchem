@@ -19,24 +19,25 @@ def get_network(n,nr,na=0):
         reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
         products=np.random.choice(np.setdiff1d(np.arange(n),reactants),size=np.random.randint(1,4),replace=False)
 
-        #forward
         eta[2*i,reactants]=np.random.randint(1,3,size=len(reactants))
         nu[2*i,products]=np.random.randint(1,3,size=len(products))
 
         if i<na:
             auto=np.random.choice(reactants)
-            # nu[2*i,auto]=eta[2*i,auto]+1
             nu[2*i,auto]=eta[2*i,auto]
 
-        # k[2*i]=np.random.random()
-        k[2*i]=np.random.exponential()
-
-        deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
-        K=np.exp(-deltaG)
-        #reverse
         nu[2*i+1]=eta[2*i]
         eta[2*i+1]=nu[2*i]
-        k[2*i+1]=k[2*i]*K
+
+        #Randomly sample the rate constant in the deltaG>0 direction
+        deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
+        if deltaG>0:
+            k[2*i]=np.random.exponential()
+            k[2*i+1]=k[2*i]*np.exp(-deltaG)
+        else:
+            k[2*i+1]=np.random.exponential()
+            k[2*i]=k[2*i+1]*np.exp(deltaG)
+
     return eta,nu,k,G
 
 def get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd):
@@ -44,6 +45,7 @@ def get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd):
     n=len(G)
     nr=int(len(k)/2)
     inds=np.random.choice(np.arange(n),size=nd,replace=False)
+    # inds=np.argsort(G)[-nd:] #drive the most stable species, to avoid large concentration ratios
     scales=np.exp(-G[inds])
 
     XD1s=np.zeros((steps,n))
@@ -64,8 +66,12 @@ def jac(X,eta,nu,k,XD1,XD2):
     return -np.diag(XD2)+np.tensordot(np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]),nu/X,axes=1)
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    # return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':X0})
-    return root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
+    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', tol=1e-8)
+    # sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='lm', options={'xtol':1e-8,'ftol':1e-12})
+    return sol.success,sol.x
+    # sol=root(lambda x:func(0,np.exp(x),eta,nu,k,XD1,XD2),x0=np.log(X0),jac=lambda x:jac(np.exp(x),eta,nu,k,XD1,XD2)*np.exp(x), method='hybr', tol=1e-12)
+    # return sol.success,np.exp(sol.x)
+    #it would be nice to use log
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
     n=len(X0)
@@ -103,34 +109,36 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s, output=True, stop=True):
     for m in range(steps):
         if output:
             print(m,end='\t\r')
-        sol=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
+        success,solx=steady(X0,eta,nu,k,XD1s[m],XD2s[m])
 
-        if sol.success:
-            sols[m]=sol.x
+        if success:
+            sols[m]=solx
             evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
-            if np.max(np.real(evals[m]))>0 and stop:
+            if np.max(np.real(evals[m]))>1e-3:
                 if np.abs(np.imag(evals[m,np.argmax(np.real(evals[m]))]))>0:
                     if output:
-                        print('hopf bifurcation!',m)
-                    return sols[:m+1],evals[:m+1],1
+                        print('\nhopf bifurcation!',m)
+                    if stop:
+                        return sols[:m+1],evals[:m+1],1
                 else:
                     if output:
-                        print('saddle-node bifurcation!',m)
+                        print('\nsaddle-node bifurcation (transcritical or pitchfork)!',m)
                     return sols[:m+1],evals[:m+1],2
         else:
             if output:
-                print('saddle-node bifurcation! ',m)
+                print('\nsaddle-node bifurcation! ',m)
             return sols[:m],evals[:m],2
 
         #estimate new solution from jacobian
         dX=-np.linalg.solve(jac(sols[m],eta, nu, k, XD1s[m], XD2s[m]),np.diff(XD1s,axis=0)[0])
-        if output and np.min(sols[m]+dX)<0:
-            print('step size large (negative X0)',m)
+        if np.min(sols[m]+dX)<0:
+            if output:
+                print('step size large (negative X0)',m,'\t\r',end='')
             dX=0
         X0=sols[m]+dX
         #We could adapt step size in principle...
         if output and np.max(np.abs(dX/sols[m])) > 1e-1:
-            print("step size large",m,np.max(np.abs((X0-sols[m])/X0)), flush=True)
+            print("step size large",m,np.max(np.abs((X0-sols[m])/X0)),'\t\r',end='', flush=True)
     return sols,evals,0
 
 if __name__ == "__main__":
@@ -201,13 +209,14 @@ if __name__ == "__main__":
     Xs=np.array([])
     evals=np.array([])
 
-    m=len(Xs)-1
     if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
         Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1s, XD2s, output)
 
+    m=len(Xs)-1
+
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
-    print(n,nr,nd,seed,steps,skip,d0,d1max, file=file)
+    print(n,nr,nd,na,seed,steps,skip,d0,d1max, file=file)
     print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, r, bif, m), file=file)
     file.close()
 
