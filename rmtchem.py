@@ -44,8 +44,8 @@ def get_drive(eta,nu,k,G,d0,d1min,d1max,steps,nd):
     d1s=np.arange(d1min,d1max,(d1max-d1min)/steps)
     n=len(G)
     nr=int(len(k)/2)
-    inds=np.random.choice(np.arange(n),size=nd,replace=False)
-    # inds=np.argsort(G)[-nd:] #drive the most stable species, to avoid large concentration ratios
+    # inds=np.random.choice(np.arange(n),size=nd,replace=False)
+    inds=np.argsort(G)[-nd:] #drive the most stable species, to avoid large concentration ratios
     scales=np.exp(-G[inds])
 
     XD1s=np.zeros((steps,n))
