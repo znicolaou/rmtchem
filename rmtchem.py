@@ -13,7 +13,7 @@ def get_network(n,nr,na=0):
     eta=np.zeros((2*nr,n))
     nu=np.zeros((2*nr,n))
     k=np.zeros(2*nr)
-    G=np.random.normal(loc=0, scale=0.5, size=n)
+    G=np.random.normal(loc=0, scale=1.0, size=n)
 
     for i in range(nr):
         reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
@@ -32,10 +32,10 @@ def get_network(n,nr,na=0):
         #Randomly sample the rate constant in the deltaG>0 direction
         deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
         if deltaG>0:
-            k[2*i]=np.random.exponential()
+            k[2*i]=np.random.exponential(scale=deltaG)
             k[2*i+1]=k[2*i]*np.exp(-deltaG)
         else:
-            k[2*i+1]=np.random.exponential()
+            k[2*i+1]=np.random.exponential(scale=-deltaG)
             k[2*i]=k[2*i+1]*np.exp(deltaG)
 
     return eta,nu,k,G
@@ -62,16 +62,14 @@ def rates(X,eta,nu,k):
 def func(t, X, eta, nu, k, XD1, XD2):
     return XD1-XD2*X+np.sum((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis],axis=0)
 
-def jac(X,eta,nu,k,XD1,XD2):
+def jac(t,X,eta,nu,k,XD1,XD2):
     return -np.diag(XD2)+np.tensordot(np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]),nu/X,axes=1)
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='hybr', tol=1e-8)
-    # sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(x,eta,nu,k,XD1,XD2), method='lm', options={'xtol':1e-8,'ftol':1e-12})
+    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', tol=1e-8)
     return sol.success,sol.x
     # sol=root(lambda x:func(0,np.exp(x),eta,nu,k,XD1,XD2),x0=np.log(X0),jac=lambda x:jac(np.exp(x),eta,nu,k,XD1,XD2)*np.exp(x), method='hybr', tol=1e-12)
     # return sol.success,np.exp(sol.x)
-    #it would be nice to use log
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
     n=len(X0)
@@ -80,9 +78,10 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
         pbar=ProgressBar(widgets=['Integration: ', Percentage(),Bar(), ' ', ETA()], maxval=t1)
         pbar.start()
     Xs=np.zeros((int(t1/dt),n))
-    rode=ode(func).set_integrator('lsoda',rtol=1e-6,atol=1e-12,max_step=dt)
+    rode=ode(func,jac).set_integrator('lsoda',rtol=1e-3,atol=1e-5,max_step=dt)
     rode.set_initial_value(X0, 0)
     rode.set_f_params(eta, nu, k, XD1, XD2)
+    rode.set_jac_params(eta, nu, k, XD1, XD2)
     for n in range(int(t1/dt)):
         t=n*dt
         if prog:
@@ -113,8 +112,8 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s, output=True, stop=True):
 
         if success:
             sols[m]=solx
-            evals[m]=np.linalg.eig(jac(sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
-            if np.max(np.real(evals[m]))>1e-3:
+            evals[m]=np.linalg.eig(jac(0,sols[m],eta,nu,k,XD1s[m], XD2s[m]))[0]
+            if np.max(np.real(evals[m]))>0:
                 if np.abs(np.imag(evals[m,np.argmax(np.real(evals[m]))]))>0:
                     if output:
                         print('\nhopf bifurcation!',m)
@@ -130,7 +129,7 @@ def quasistatic (X0, eta, nu, k, XD1s, XD2s, output=True, stop=True):
             return sols[:m],evals[:m],2
 
         #estimate new solution from jacobian
-        dX=-np.linalg.solve(jac(sols[m],eta, nu, k, XD1s[m], XD2s[m]),np.diff(XD1s,axis=0)[0])
+        dX=-np.linalg.solve(jac(0,sols[m],eta, nu, k, XD1s[m], XD2s[m]),np.diff(XD1s,axis=0)[0])
         if np.min(sols[m]+dX)<0:
             if output:
                 print('step size large (negative X0)',m,'\t\r',end='')
