@@ -270,9 +270,10 @@ if __name__ == "__main__":
 
     XD1,XD2,inds=get_drive(eta,nu,k,G,d0,nd)
 
-    bif=-1
+    bif=-3
     Xs=np.array([])
     evals=np.array([])
+    epsilons=np.array([])
 
 
     if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
