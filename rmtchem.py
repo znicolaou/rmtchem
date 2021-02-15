@@ -215,7 +215,7 @@ if __name__ == "__main__":
     parser.add_argument("--nd", type=int, default=1, dest='nd', help='Number of drives')
     parser.add_argument("--dmax", type=float, default=100, dest='dmax', help='Maximum drive')
     parser.add_argument("--type", type=int, default=0, dest='type', help='Type of adjacency matrix. 0 for chemical networks, 1 for ER networks.')
-    parser.add_argument("--d0", type=float, default=1e3, dest='d0', help='Drive timescale')
+    parser.add_argument("--d0", type=float, default=1e6, dest='d0', help='Drive timescale')
     parser.add_argument("--seed", type=int, default=1, dest='seed', help='Random seed')
     parser.add_argument("--steps", type=int, default=5000, dest='steps', help='Steps for driving')
     parser.add_argument("--na", type=int, default=0, dest='na', help='Number of autocatalytic reactions')
