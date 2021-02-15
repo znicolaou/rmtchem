@@ -276,17 +276,16 @@ if __name__ == "__main__":
 
 
     if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
-        Xs,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, steps, output)
-
-    m=len(Xs)-1
+        Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, steps, output)
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,na,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, r, bif, m), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, r, bif, epsilons[-1]), file=file)
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%i'%(stop-start, seed, n, r, bif, m), flush=True)
+        print('%.3f\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, r, bif, epsilons[-1]), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
+        np.save(filebase+'epsilons.npy',epsilons[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
