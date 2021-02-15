@@ -184,7 +184,8 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 dX=-np.linalg.solve(mat,depsilon*XD1)
 
             if depsilon<(epsilon1-epsilon0)/steps/1e6:
-                print('\nFailed to converge a! ',epsilon)
+                if output:
+                    print('\nFailed to converge a! ',epsilon)
                 bif=-2
                 break
 
@@ -197,7 +198,8 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             depsilon=depsilon/2
 
             if depsilon<(epsilon1-epsilon0)/steps/1e6:
-                print('\nFailed to converge b! ',epsilon)
+                if output:
+                    print('\nFailed to converge b! ',epsilon)
                 bif=-1
                 break
 
@@ -273,20 +275,21 @@ if __name__ == "__main__":
     bif=-3
     Xs=np.array([])
     evals=np.array([])
-    epsilons=np.array([])
+    epsilon=0
 
 
     if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
         Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, steps, output)
+        epsilon=epsilons[-1]
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,na,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, r, bif, epsilons[-1]), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, r, bif, epsilon), file=file)
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, r, bif, epsilons[-1]), flush=True)
+        print('%.3f\t%i\t%i\t%i\t%i\t%f'%(stop-start, seed, n, r, bif, epsilon), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'epsilons.npy',epsilons[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
