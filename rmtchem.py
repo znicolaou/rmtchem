@@ -7,6 +7,8 @@ import argparse
 import sys
 from progressbar import *
 from scipy.optimize import root
+from scipy.optimize import minimize
+from scipy.optimize import leastsq
 import networkx as nx
 
 def get_network(n,nr,na=0):
@@ -79,7 +81,7 @@ def hess(t,X,eta,nu,k,XD1,XD2,nu2=[]):
     return np.tensordot((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis],nu2/X[np.newaxis,np.newaxis,:]/X[np.newaxis,:,np.newaxis],axes=([0],[0]))
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', tol=1e-6)
+    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-10})
     return sol.success,sol.x
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
@@ -89,11 +91,12 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
         pbar=ProgressBar(widgets=['Integration: ', Percentage(),Bar(), ' ', ETA()], maxval=t1)
         pbar.start()
     Xs=np.zeros((int(t1/dt),n))
-    rode=ode(func,jac).set_integrator('lsoda',rtol=1e-6,atol=1e-12,max_step=dt/10)
+    rode=ode(func,jac).set_integrator('lsoda',rtol=1e-6,atol=1e-8,max_step=dt)
     rode.set_initial_value(X0, 0)
     rode.set_f_params(eta, nu, k, XD1, XD2)
     rode.set_jac_params(eta, nu, k, XD1, XD2)
-    for n in range(int(t1/dt)):
+    Xs[0]=X0
+    for n in range(1,int(t1/dt)):
         t=n*dt
         if prog:
             pbar.update(t)
@@ -106,11 +109,15 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
         pbar.finish()
     return Xs,success
 
-def snfunc(X0,epsilon0,Xs,epsilons,alpha,beta,evecs,ind):
+def snfunc(X,Xs,epsilons,alpha,beta,evecs,ind):
+    X0=X[:-1]
+    epsilon0=X[-1]
     inds=np.setdiff1d(np.arange(len(X0)),[ind])
     S0=(Xs-X0)
-    S1=((((epsilons-epsilon0)*alpha/2)**0.5)[:,np.newaxis]*evecs[:,ind])
+    S1=(((np.abs((epsilons-epsilon0)*alpha)/2)**0.5)[:,np.newaxis]*evecs[:,ind])
     S2=-(epsilons-epsilon0)[:,np.newaxis]*np.sum(beta[inds]*evecs[:,inds],axis=1)
+    # S1=0
+    S2=0
     return np.sum(np.linalg.norm(S0+S1+S2,axis=1))
 
 #We should have epsilon passed rather than XD1s and XD2s
@@ -118,64 +125,86 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     n=len(X0)
     nr=int(len(nu)/2)
 
-    sols=np.zeros((steps,n))
-    evals=np.zeros((steps,n),dtype=np.complex128)
-    prog=False
-    if output:
-        prog=True
+    epsilons=[]
+    sols=[]
+    evals=[]
+    depsilon=(epsilon1-epsilon0)/steps
+    epsilon=0
 
     nu2=getNu2(nu)
     drives=np.zeros(n)
     drives[np.where(XD1!=0)[0]]=1
-    epsilon=epsilon0
-    depsilon=(epsilon1-epsilon0)/steps
-    for m in range(steps):
+    bif=0
+    count=0
+    SNnum=10
+
+    while epsilon<epsilon1:
         if output:
-            print(m,end='\t\r')
+            print('%.6f\t\r'%((epsilon-epsilon0)/(epsilon1-epsilon0)),end='')
+
         success,solx=steady(X0,eta,nu,k,(1+epsilon)*XD1,XD2)
-
         if success:
-            sols[m]=solx
-            mat=jac(0,sols[m],eta,nu,k,(1+epsilon)*XD1,XD2)
-            evals[m],evecs=np.linalg.eig(mat)
-            if np.max(np.real(evals[m]))>0:
-                if np.abs(np.imag(evals[m,np.argmax(np.real(evals[m]))]))>0:
-                    if output:
-                        print('\nhopf bifurcation!',m)
-                    if stop:
-                        return sols[:m+1],evals[:m+1],1
-                else:
-                    if output:
-                        print('\nsaddle-node bifurcation (transcritical or pitchfork)!',m)
-                    return sols[:m+1],evals[:m+1],2
-            #estimate new solution from jacobian
-            #We should do adapative steps, and add the least-squares stopping condition
-            #We could switch branches in the stopping condition if we like
-            epsilon=epsilon+depsilon #step size could be adaptive here
-            ind=np.argmax(np.real(evals[m]))
-            dX=-np.linalg.solve(mat,depsilon*XD1)
-            if np.min(sols[m]+dX)<0:
-                if output:
-                    print('step size large (negative X0)',m,'\t\r',end='')
-                dX=0
-            X0=sols[m]+dX
-            if output and np.max(np.abs(dX/sols[m])) > 1e-1:
-                print("step size large",m,np.max(np.abs((X0-sols[m])/X0)),'\t\n',end='', flush=True)
+            sols.append(solx)
+            epsilons.append(epsilon)
+            mat=jac(0,solx,eta,nu,k,(1+epsilon)*XD1,XD2)
+            eval,evec=np.linalg.eig(mat)
+            evals.append(eval)
 
-            einv=np.linalg.inv(evecs)
-            beta=XD1.dot(einv)
-            alpha=hess(0,sols[m],eta,nu,k,(1+epsilon)*XD1,XD2,nu2).dot(evecs[:,ind]).dot(evecs[:,ind]).dot(einv[ind])/beta[ind]
-            if(np.abs(evals[m,ind])<1e-2):
-                epsilons=epsilon-depsilon*np.flip(np.arange(2))
-                # print(snfunc(sols[m],epsilon,sols[m-1:m+1],epsilons,alpha,beta,evecs,ind))
+            #Check if Hopf
+            if np.max(np.real(eval))>0 and np.abs(np.imag(eval[np.argmax(np.real(eval))]))>0:
+                bif=1
+                if output:
+                    print('\nhopf bifurcation!',epsilon)
+                if stop:
+                    break
+
+            #Check if Saddle Node
+            if np.min(np.abs(eval))<1e-6 and len(sols)>SNnum:
+                a=(np.linalg.norm(sols[-1])-np.linalg.norm(sols[-SNnum]) )/(epsilons[-1]-epsilons[-SNnum])
+                b=0.5*((np.linalg.norm(sols[-1])+np.linalg.norm(sols[-SNnum]) )-a*(epsilons[-1]+epsilons[-SNnum]))
+                sol=leastsq(lambda x: x[0]+x[1]*np.linalg.norm(sols[-SNnum:],axis=1) +x[2]*np.linalg.norm(sols[-SNnum:],axis=1)**2-epsilons[-SNnum:],[b,a,0])
+                #Note: we have uncertainty in the fit we could include
+                if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<np.min([depsilon,1e-3]):
+                    bif=2
+                    if output:
+                        print('\nsaddle-node bifurcation!',epsilon)
+                    break
+
+            # Try to increase the step size occasionally
+            count=count+1
+            if count/100==1:
+                count=0
+                if depsilon<(epsilon1-epsilon0)/steps/1.5:
+                    depsilon=depsilon*1.5
+
+            # half the stepsize until the relative change is small
+            dX=-np.linalg.solve(mat,depsilon*XD1)
+            while np.max(np.abs(dX/solx)) > 1e-1:
+                depsilon=depsilon/2
+                dX=-np.linalg.solve(mat,depsilon*XD1)
+
+            if depsilon<(epsilon1-epsilon0)/steps/1e6:
+                print('\nFailed to converge a! ',epsilon)
+                bif=-2
+                break
+
+            X0=solx+dX
+            epsilon=epsilon+depsilon
 
         else:
-            if output:
-                print('\nFailed to converge! ',m)
-            return sols[:m],evals[:m],-1
+            epsilon=epsilons[-1]
+            mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
+            depsilon=depsilon/2
 
+            if depsilon<(epsilon1-epsilon0)/steps/1e6:
+                print('\nFailed to converge b! ',epsilon)
+                bif=-1
+                break
 
-    return sols,evals,0
+            dX=-np.linalg.solve(mat,depsilon*XD1)
+            X0=sols[-1]+dX
+
+    return np.array(sols),np.array(epsilons),np.array(evals),bif
 
 if __name__ == "__main__":
     #Command line arguments
