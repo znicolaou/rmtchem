@@ -46,8 +46,8 @@ def get_network(n,nr,na=0):
 
 def get_drive(eta,nu,k,G,d0,nd):
     n=len(G)
-    # inds=np.random.choice(np.arange(n),size=nd,replace=False)
-    inds=np.argsort(G)[-nd:] #drive the most stable species, to avoid large concentration ratios
+    inds=np.random.choice(np.arange(n),size=nd,replace=False)
+    # inds=np.argsort(G)[-nd:] #drive the most stable species, to avoid large concentration ratios
     XD1=np.zeros(n)
     XD2=np.zeros(n)
     XD1[inds]=d0*np.exp(-G[inds])
@@ -81,6 +81,8 @@ def hess(t,X,eta,nu,k,XD1,XD2,nu2=[]):
     return np.tensordot((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis],nu2/X[np.newaxis,np.newaxis,:]/X[np.newaxis,:,np.newaxis],axes=([0],[0]))
 
 def steady(X0, eta, nu, k, XD1, XD2):
+    # sol=root(lambda x:func(0,np.exp(x),eta,nu,k,XD1,XD2),x0=np.log(X0),jac=lambda x:jac(0,np.exp(x),eta,nu,k,XD1,XD2)*np.exp(x), method='hybr', options={'xtol':1e-6})
+    # return sol.success,np.exp(sol.x)
     sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-10})
     return sol.success,sol.x
 
@@ -140,7 +142,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
     while epsilon<epsilon1:
         if output:
-            print('%.6f\t\r'%((epsilon-epsilon0)/(epsilon1-epsilon0)),end='')
+            print('%.4f\t\r'%((epsilon-epsilon0)/(epsilon1-epsilon0)),end='')
 
         success,solx=steady(X0,eta,nu,k,(1+epsilon)*XD1,XD2)
         if success:
@@ -170,22 +172,23 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                         print('\nsaddle-node bifurcation!',epsilon)
                     break
 
-            # Try to increase the step size occasionally
+            # Try to increase the step size if last 10 successful
             count=count+1
-            if count/100==1:
+            if count/10==1:
                 count=0
-                if depsilon<(epsilon1-epsilon0)/steps/1.5:
-                    depsilon=depsilon*1.5
+                if depsilon<(epsilon1-epsilon0)/steps/2:
+                    depsilon=depsilon*2
 
             # half the stepsize until the relative change is small
             dX=-np.linalg.solve(mat,depsilon*XD1)
             while np.max(np.abs(dX/solx)) > 1e-1:
                 depsilon=depsilon/2
                 dX=-np.linalg.solve(mat,depsilon*XD1)
+                count=0
 
-            if depsilon<(epsilon1-epsilon0)/steps/1e6:
+            if depsilon<(epsilon1-epsilon0)/steps/100:
                 if output:
-                    print('\nFailed to converge a! ',epsilon)
+                    print('\nFailed to converge! ',epsilon)
                 bif=-2
                 break
 
@@ -194,12 +197,14 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
         else:
             epsilon=epsilons[-1]
+            if output:
+                print('\t\t solution lost! decreasing step %.4f %.4f\t\r'%(epsilon,depsilon), end='')
             mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
             depsilon=depsilon/2
 
-            if depsilon<(epsilon1-epsilon0)/steps/1e6:
+            if depsilon<(epsilon1-epsilon0)/steps/100:
                 if output:
-                    print('\nFailed to converge b! ',epsilon)
+                    print('\nFailed to converge! ',epsilon)
                 bif=-1
                 break
 
