@@ -154,19 +154,20 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
             #Check if Hopf
             if np.max(np.real(eval))>0 and np.abs(np.imag(eval[np.argmax(np.real(eval))]))>0:
-                bif=1
-                if output:
+                if output and bif==0:
                     print('\nhopf bifurcation!',epsilon)
+                bif=1
                 if stop:
                     break
 
+
             #Check if Saddle Node
-            if np.min(np.abs(eval))<1e-6 and len(sols)>SNnum:
+            if np.max(np.real(eval))>-1e-4 and len(sols)>SNnum:
                 a=(np.linalg.norm(sols[-1])-np.linalg.norm(sols[-SNnum]) )/(epsilons[-1]-epsilons[-SNnum])
                 b=0.5*((np.linalg.norm(sols[-1])+np.linalg.norm(sols[-SNnum]) )-a*(epsilons[-1]+epsilons[-SNnum]))
                 sol=leastsq(lambda x: x[0]+x[1]*np.linalg.norm(sols[-SNnum:],axis=1) +x[2]*np.linalg.norm(sols[-SNnum:],axis=1)**2-epsilons[-SNnum:],[b,a,0])
                 #Note: we have uncertainty in the fit we could include
-                if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<np.min([depsilon,1e-3]):
+                if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<(epsilon1-epsilon0)/steps:
                     bif=2
                     if output:
                         print('\nsaddle-node bifurcation!',epsilon)
