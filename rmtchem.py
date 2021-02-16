@@ -214,7 +214,8 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                         break
 
                     if  depsilon>xn2:
-                        print('\nBifurcation expected, decreasing step! \t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,xn2),end='')
+                        if output:
+                            print('\nBifurcation expected, decreasing step! \t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,xn2),end='')
                         epsilon=epsilons[-1]
                         mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
                         depsilon=depsilon/10
