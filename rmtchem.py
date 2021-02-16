@@ -18,8 +18,8 @@ def get_network(n,nr,na=0):
     G=np.random.normal(loc=0, scale=1.0, size=n)
 
     for i in range(nr):
-        reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
-        products=np.random.choice(np.setdiff1d(np.arange(n),reactants),size=np.random.randint(1,4),replace=False)
+        reactants=np.random.choice(np.arange(n),size=np.random.randint(1,3),replace=False)
+        products=np.random.choice(np.setdiff1d(np.arange(n),reactants),size=np.random.randint(1,3),replace=False)
 
         eta[2*i,reactants]=np.random.randint(1,3,size=len(reactants))
         nu[2*i,products]=np.random.randint(1,3,size=len(products))
@@ -222,8 +222,6 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                         X0=sols[-1]+dX
                         epsilon=epsilon+depsilon
                         continue
-                    else:
-                        print('\nBifurcation not expected! \t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,xn2),end='')
 
             sols.append(solx)
             epsilons.append(epsilon)
