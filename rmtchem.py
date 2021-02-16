@@ -187,9 +187,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 xm=xs[-1]
                 x0=xs[0]
                 y0=ys[0]
-                xs=np.concatenate([xs,np.flip(xs)])
-                ys=np.concatenate([ys,np.flip(2*ys[-1]-ys)])
-                sol=leastsq(lambda x: x[0]+x[1]*(ys-x[2])**2-xs, [xm,(x0-xm)/(y0-ym)**2,ym])
+                sol1=leastsq(lambda x: x[0]+x[1]*(ys-x[2])**2-xs, [xm,(x0-xm)/(y0-ym)**2,ym])
 
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=epsilons[-SNnum:]
@@ -201,11 +199,12 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 ys=np.concatenate([ys,np.flip(-ys)])
                 sol2=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xm,(xm-x0)/y0**2])
 
-                xn1=sol2[0][0]-epsilon
+                xn1=sol1[0][0]-epsilon
                 xn2=sol2[0][0]-epsilon
                 # xn2=sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon
 
-                if np.min(np.abs(eval))<1e-2 and xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
+                # if np.min(np.abs(eval))<1e-2 and xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
+                if xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
                     if bif==0:
                         bif=2
                     if output:
@@ -213,7 +212,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                     break
 
                 # If expected bifurcation is less than next step, decrease step
-                if xn1>0 and depsilon>np.min(np.abs([xn1,xn2])) and xn1>0:
+                if xn1>-depsilon and xn2>-depsilon and depsilon>np.max(np.abs([xn1,xn2])):
                     print('\nBifurcation expected, decreasing step!\n')
                     epsilon=epsilons[-1]
                     mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
