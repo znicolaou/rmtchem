@@ -160,7 +160,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
             #Check if overshoot before saddle-node.
             #We should more generally check if the index changes
-            if len(epsilons)>1 and np.linalg.norm(solx-(sols[-1]+dX)) > np.linalg.norm(dX)*1e-1:
+            if len(epsilons)>1 and np.linalg.norm(solx-(sols[-1]+dX)) > 1.5*np.linalg.norm(dX):
             # if (bif==0 and np.max(np.real(eval))>0):
                 epsilon=epsilons[-1]
                 if output:
