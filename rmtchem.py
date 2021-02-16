@@ -141,11 +141,11 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     SNnum=5
     dX=X0
     depmin=(epsilon1-epsilon0)/steps/1e3
-    epthrs=(epsilon1-epsilon0)/steps
+    epthrs=(epsilon1-epsilon0)/steps/1e1
 
     while epsilon<epsilon1:
         if output:
-            print('%.4f\t\r'%((epsilon-epsilon0)/(epsilon1-epsilon0)),end='')
+            print('%.6f\t\r'%((epsilon-epsilon0)/(epsilon1-epsilon0)),end='')
 
         success,solx=steady(X0,eta,nu,k,(1+epsilon)*XD1,XD2)
         if success:
@@ -156,11 +156,11 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             if len(epsilons)>1 and np.linalg.norm(solx-(sols[-1]+dX)) > 1.1*np.linalg.norm(dX):
                 epsilon=epsilons[-1]
                 if output:
-                    print('\nChanged branches! decreasing step %.4f \t%.4f\t%.4f\t%.4f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX)), end='')
+                    print('\nChanged branches! decreasing step %.4f \t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX)), end='')
                 mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
                 depsilon=depsilon/1.5
 
-                if depsilon<(epsilon1-epsilon0)/steps/1000:
+                if depsilon<depmin:
                     if output:
                         print('\nFailed to converge! ',epsilon)
                     bif=-1
@@ -197,19 +197,18 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 y0=ys[0]
 
                 if(np.abs(xm-x0)<(epsilon1-epsilon0)/steps):
-                    print('\ntest\n')
                     xs=np.concatenate([xs,np.flip(xs)])
                     ys=np.concatenate([ys,np.flip(-ys)])
                     sol2=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xm,(xm-x0)/y0**2])
-
-                    # xn1=sol1[0][0]-epsilon
                     xn2=sol2[0][0]-epsilon
-                    # xn2=sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon
 
                     # if np.min(np.abs(eval))<1e-2 and xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
                     # if xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
                     # if xn2<epthrs and xn2>-depsilon:
-                    if xn2<depsilon and xn2>-depsilon:
+                    if np.abs(xn2)<epthrs:
+                        sols.append(solx)
+                        epsilons.append(epsilon)
+                        evals.append(eval)
                         if bif==0:
                             bif=2
                         if output:
@@ -219,7 +218,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                     # If expected bifurcation is less than next step, decrease step
                     # if xn1>-depsilon and xn2>-depsilon and depsilon>np.min(np.abs([xn1,xn2])):
                     if  depsilon>xn2:
-                        print('\nBifurcation expected, decreasing step!\n')
+                        print('\nBifurcation expected, decreasing step! \t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,xn2),end='')
                         epsilon=epsilons[-1]
                         mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
                         depsilon=depsilon/10
@@ -227,6 +226,8 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                         X0=sols[-1]+dX
                         epsilon=epsilon+depsilon
                         continue
+                    else:
+                        print('\nBifurcation not expected! \t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,xn2),end='')
 
             sols.append(solx)
             epsilons.append(epsilon)
@@ -257,7 +258,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
         else:
             epsilon=epsilons[-1]
             if output:
-                print('\nBranch lost! decreasing step %.4f %.4f\t\n'%(epsilon,depsilon), end='')
+                print('\nBranch lost! decreasing step %.6f %.6f\t\n'%(epsilon,depsilon), end='')
             mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
             depsilon=depsilon/1.5
 
