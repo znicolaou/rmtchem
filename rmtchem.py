@@ -195,7 +195,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 fn=np.linalg.norm(sol[0][0]+sol[0][1]*ys**2-xs)
                 xn1=sol[0][0]-epsilon
                 xn2=sol2[0][0]-sol2[0][1]**2/(4*sol2[0][2])-epsilon
-                if depsilon>0.5*np.min(np.abs([xn1,xn2])):
+                if depsilon>0.5*np.max(np.abs([xn1,xn2])):
                     depsilon=depsilon/1.5
 
                 if np.min(np.abs(eval))<1e-2 and xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
