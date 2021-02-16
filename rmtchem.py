@@ -150,32 +150,30 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             mat=jac(0,solx,eta,nu,k,(1+epsilon)*XD1,XD2)
             eval,evec=np.linalg.eig(mat)
 
-            #Check if Hopf
-            if np.max(np.real(eval))>0 and np.abs(np.imag(eval[np.argmax(np.real(eval))]))>0:
-                if output and bif==0:
-                    print('\nhopf bifurcation!',epsilon)
-                bif=1
-                if stop:
-                    break
-
-            #Check if overshoot before saddle-node.
-            #We should more generally check if the index changes
+            #Check if solution changed more than expected
             if len(epsilons)>1 and np.linalg.norm(solx-(sols[-1]+dX)) > 1.5*np.linalg.norm(dX):
-            # if (bif==0 and np.max(np.real(eval))>0):
                 epsilon=epsilons[-1]
                 if output:
-                    print('changed branches! decreasing step %.4f \t%.4f\t%.4f\t%.4f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX)), end='')
+                    print('Changed branches! decreasing step %.4f \t%.4f\t%.4f\t%.4f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX)), end='')
                 mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
                 depsilon=depsilon/2
 
                 if depsilon<(epsilon1-epsilon0)/steps/1000:
                     if output:
-                        print('\nFailed to converge C! ',epsilon)
+                        print('\nFailed to converge! ',epsilon)
                     bif=-1
                     break
                 dX=-np.linalg.solve(mat,depsilon*XD1)
                 X0=sols[-1]+dX
                 continue
+
+            #Check if Hopf
+            if np.max(np.real(eval))>0 and np.abs(np.imag(eval[np.argmax(np.real(eval))]))>0:
+                if output and bif==0:
+                    print('\nHopf bifurcation!',epsilon)
+                bif=1
+                if stop:
+                    break
 
             sols.append(solx)
             epsilons.append(epsilon)
@@ -191,7 +189,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<(epsilon1-epsilon0)/steps:
                     bif=2
                     if output:
-                        print('\nsaddle-node bifurcation!',epsilon)
+                        print('\nSaddle-node bifurcation!',epsilon)
                     break
 
             # Try to increase the step size if last 10 successful
@@ -211,7 +209,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             if depsilon<(epsilon1-epsilon0)/steps/1000:
                 if output:
                     print('\nFailed to converge! ',epsilon)
-                bif=-2
+                bif=-1
                 break
 
             X0=solx+dX
@@ -220,7 +218,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
         else:
             epsilon=epsilons[-1]
             if output:
-                print('\t\t solution lost! decreasing step %.4f %.4f\t\r'%(epsilon,depsilon), end='')
+                print('\nBranch lost! decreasing step %.4f %.4f\t\r'%(epsilon,depsilon), end='')
             mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
             depsilon=depsilon/2
 
