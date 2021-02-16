@@ -138,7 +138,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     drives[np.where(XD1!=0)[0]]=1
     bif=0
     count=0
-    SNnum=5
+    SNnum=3
     dX=X0
     depmin=(epsilon1-epsilon0)/steps/1e3
     epthrs=(epsilon1-epsilon0)/steps/1e1
@@ -147,24 +147,25 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
         if output:
             print('%.6f\t\r'%((epsilon-epsilon0)/(epsilon1-epsilon0)),end='')
 
+        if depsilon<depmin:
+            if output:
+                print('\nFailed to converge! ',epsilon)
+            bif=-1
+            break
+
         success,solx=steady(X0,eta,nu,k,(1+epsilon)*XD1,XD2)
         if success:
             mat=jac(0,solx,eta,nu,k,(1+epsilon)*XD1,XD2)
             eval,evec=np.linalg.eig(mat)
 
-            #Check if solution changed more than expected
-            if len(epsilons)>1 and np.linalg.norm(solx-(sols[-1]+dX)) > 1.1*np.linalg.norm(dX):
+            #Check if solution changed more than desired
+            if len(epsilons)>1 and (np.linalg.norm(solx-(sols[-1]+dX)) > 1.1*np.linalg.norm(dX) or np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.25):
                 epsilon=epsilons[-1]
                 if output:
-                    print('\nChanged branches! decreasing step %.4f \t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX)), end='')
+                    print('\nChanged too much! decreasing step %.6f \t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX),np.min(np.abs(eval)),np.min(np.abs(evals[-1]))), end='')
                 mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
-                depsilon=depsilon/1.5
+                depsilon=depsilon/2
 
-                if depsilon<depmin:
-                    if output:
-                        print('\nFailed to converge! ',epsilon)
-                    bif=-1
-                    break
                 dX=-np.linalg.solve(mat,depsilon*XD1)
                 X0=sols[-1]+dX
                 epsilon=epsilon+depsilon
@@ -192,7 +193,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=epsilons[-SNnum:]
                 ym=ys[-1]
-                xm=xs[-1]+(xs[-1]-xs[0])/(ys[-1]-ys[0])*ys[0]
+                xm=xs[-1]+(xs[-1]-xs[-2])/(ys[-1]-ys[-2])*ys[-2]
                 x0=xs[0]
                 y0=ys[0]
 
@@ -202,9 +203,6 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                     sol2=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xm,(xm-x0)/y0**2])
                     xn2=sol2[0][0]-epsilon
 
-                    # if np.min(np.abs(eval))<1e-2 and xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
-                    # if xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
-                    # if xn2<epthrs and xn2>-depsilon:
                     if np.abs(xn2)<epthrs:
                         sols.append(solx)
                         epsilons.append(epsilon)
@@ -215,8 +213,6 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                             print('\nSaddle-node bifurcation!',epsilon)
                         break
 
-                    # If expected bifurcation is less than next step, decrease step
-                    # if xn1>-depsilon and xn2>-depsilon and depsilon>np.min(np.abs([xn1,xn2])):
                     if  depsilon>xn2:
                         print('\nBifurcation expected, decreasing step! \t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,xn2),end='')
                         epsilon=epsilons[-1]
@@ -239,18 +235,12 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 if depsilon<(epsilon1-epsilon0)/steps/2:
                     depsilon=depsilon*1.5
 
-            # half the stepsize until the relative change is small
+            # half the stepsize until the relative expected change is small
             dX=-np.linalg.solve(mat,depsilon*XD1)
             while np.max(np.abs(dX/solx)) > 1e-1:
                 depsilon=depsilon/1.5
                 dX=-np.linalg.solve(mat,depsilon*XD1)
                 count=0
-
-            if depsilon<depmin:
-                if output:
-                    print('\nFailed to converge! ',epsilon)
-                bif=-1
-                break
 
             X0=solx+dX
             epsilon=epsilon+depsilon
