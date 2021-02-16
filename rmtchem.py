@@ -140,7 +140,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     count=0
     SNnum=5
     dX=X0
-    depmin=(epsilon1-epsilon0)/steps/1e10
+    depmin=(epsilon1-epsilon0)/steps/1e6
 
     while epsilon<epsilon1:
         if output:
@@ -188,16 +188,9 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 # ys=np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=epsilons[-SNnum:]
-                a=(ys[-1]-ys[0])/(xs[-1]-xs[0])
-                b=0.5*(ys[-1]+ys[0]-a*(xs[-1]+xs[0]))
-                # sol=leastsq(lambda x: x[0]+x[1]*ys+x[2]*ys**2-xs,[b,a,0])
-                sol=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[b,0])
-                # fn=np.linalg.norm(sol[0][0]+sol[0][1]*ys+sol[0][2]*ys**2-xs)
+                sol=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xs[-1],(xs[-1]-xs[0])/ys[0]**2])
                 fn=np.linalg.norm(sol[0][0]+sol[0][1]*ys**2-xs)
                 xn=np.abs(sol[0][0]-epsilon)
-                # if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<depsilon:
-                # if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<(epsilon1-epsilon0)/steps:
-                # print('%.4f\t%.4f\t\r'%(fn, xn))
                 if sol[0][0]+depsilon>=epsilon and xn<(epsilon1-epsilon0)/steps and fn<1e-2:
                     if bif==0:
                         bif=2
