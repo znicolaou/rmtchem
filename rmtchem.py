@@ -18,8 +18,8 @@ def get_network(n,nr,na=0):
     G=np.random.normal(loc=0, scale=1.0, size=n)
 
     for i in range(nr):
-        reactants=np.random.choice(np.arange(n),size=np.random.randint(1,3),replace=False)
-        products=np.random.choice(np.setdiff1d(np.arange(n),reactants),size=np.random.randint(1,3),replace=False)
+        reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
+        products=np.random.choice(np.setdiff1d(np.arange(n),reactants),size=np.random.randint(1,4),replace=False)
 
         eta[2*i,reactants]=np.random.randint(1,3,size=len(reactants))
         nu[2*i,products]=np.random.randint(1,3,size=len(products))
@@ -131,7 +131,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     sols=[]
     evals=[]
     depsilon=(epsilon1-epsilon0)/steps
-    epsilon=0
+    epsilon=epsilon0
 
     nu2=getNu2(nu)
     drives=np.zeros(n)
@@ -143,17 +143,18 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     depmin=(epsilon1-epsilon0)/steps/1e3
     epthrs=(epsilon1-epsilon0)/steps/1e1
 
-    while epsilon<epsilon1:
+    while ((epsilon1>epsilon0 and epsilon<=epsilon1) or (epsilon1<epsilon0 and epsilon>=epsilon1)):
         if output:
             print('%.6f\t\r'%((epsilon-epsilon0)/(epsilon1-epsilon0)),end='')
 
-        if depsilon<depmin:
+        if np.abs(depsilon)<depmin:
             if output:
                 print('\nFailed to converge! ',epsilon)
             bif=-1
             break
 
         success,solx=steady(X0,eta,nu,k,(1+epsilon)*XD1,XD2)
+
         if success:
             mat=jac(0,solx,eta,nu,k,(1+epsilon)*XD1,XD2)
             eval,evec=np.linalg.eig(mat)
@@ -181,15 +182,6 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
             #Check if Saddle Node
             if  len(sols)>SNnum:
-                #Fit both smallest eigenvalue and norms to quadratic
-                # ys=np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)
-                # xs=epsilons[-SNnum:]
-                # ym=ys[-1]
-                # xm=xs[-1]
-                # x0=xs[0]
-                # y0=ys[0]
-                # sol1=leastsq(lambda x: x[0]+x[1]*(ys-x[2])**2-xs, [xm,(x0-xm)/(y0-ym)**2,ym])
-
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=epsilons[-SNnum:]
                 ym=ys[-1]
@@ -227,6 +219,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             sols.append(solx)
             epsilons.append(epsilon)
             evals.append(eval)
+
             # Try to increase the step size if last 10 successful
             count=count+1
             if count/10==1:
@@ -245,6 +238,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             epsilon=epsilon+depsilon
 
         else:
+            print('test')
             epsilon=epsilons[-1]
             if output:
                 print('\nBranch lost! decreasing step %.6f %.6f\t\n'%(epsilon,depsilon), end='')
