@@ -181,17 +181,18 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
 
             #Check if Saddle Node
-            if np.max(np.real(eval))>-1e-3 and len(sols)>SNnum:
+            if np.max(np.real(eval))>-1e-2 and len(sols)>SNnum:
                 # a=(np.linalg.norm(sols[-1]/sols[-1])-np.linalg.norm(sols[-SNnum]/sols[-1]))/(epsilons[-1]-epsilons[-SNnum])
                 # b=0.5*((np.linalg.norm(sols[-1]/sols[-1])+np.linalg.norm(sols[-SNnum]/sols[-1]) )-a*(epsilons[-1]+epsilons[-SNnum]))
                 # sol=leastsq(lambda x: x[0]+x[1]*np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1) +x[2]*np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)**2-epsilons[-SNnum:],[b,a,0])
-                ys=np.linalg.norm(sols[-SNnum:]/sols[-SNnum],axis=1)
+                ys=np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)
                 xs=epsilons[-SNnum:]
                 a=(ys[-1]-ys[0])/(xs[-1]-xs[0])
                 b=0.5*(ys[-1]+ys[0]-a*(xs[-1]+xs[0]))
                 sol=leastsq(lambda x: x[0]+x[1]*ys+x[2]*ys**2-xs,[b,a,0])
                 fn=np.linalg.norm(sol[0][0]+sol[0][1]*ys+sol[0][2]*ys**2-xs)
-                if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<depsilon:
+                # if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<depsilon:
+                if fn < 1e-2 and np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<(epsilon1-epsilon0)/steps:
                     print(fn)
                     if bif==0:
                         bif=2
