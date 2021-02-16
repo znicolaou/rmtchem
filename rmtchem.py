@@ -138,7 +138,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     drives[np.where(XD1!=0)[0]]=1
     bif=0
     count=0
-    SNnum=10
+    SNnum=5
     dX=X0
 
     while epsilon<epsilon1:
@@ -151,10 +151,10 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             eval,evec=np.linalg.eig(mat)
 
             #Check if solution changed more than expected
-            if len(epsilons)>1 and np.linalg.norm(solx-(sols[-1]+dX)) > 1.5*np.linalg.norm(dX):
+            if len(epsilons)>1 and np.linalg.norm(solx-(sols[-1]+dX)) > 1.1*np.linalg.norm(dX):
                 epsilon=epsilons[-1]
                 if output:
-                    print('Changed branches! decreasing step %.4f \t%.4f\t%.4f\t%.4f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX)), end='')
+                    print('\nChanged branches! decreasing step %.4f \t%.4f\t%.4f\t%.4f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX)), end='')
                 mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
                 depsilon=depsilon/2
 
@@ -182,11 +182,15 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
             #Check if Saddle Node
             if np.max(np.real(eval))>-1e-1 and len(sols)>SNnum:
-                a=(np.linalg.norm(sols[-1]/sols[-1])-np.linalg.norm(sols[-SNnum]/sols[-1]))/(epsilons[-1]-epsilons[-SNnum])
-                b=0.5*((np.linalg.norm(sols[-1]/sols[-1])+np.linalg.norm(sols[-SNnum]/sols[-1]) )-a*(epsilons[-1]+epsilons[-SNnum]))
-                sol=leastsq(lambda x: x[0]+x[1]*np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1) +x[2]*np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)**2-epsilons[-SNnum:],[b,a,0])
+                # a=(np.linalg.norm(sols[-1]/sols[-1])-np.linalg.norm(sols[-SNnum]/sols[-1]))/(epsilons[-1]-epsilons[-SNnum])
+                # b=0.5*((np.linalg.norm(sols[-1]/sols[-1])+np.linalg.norm(sols[-SNnum]/sols[-1]) )-a*(epsilons[-1]+epsilons[-SNnum]))
+                # sol=leastsq(lambda x: x[0]+x[1]*np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1) +x[2]*np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)**2-epsilons[-SNnum:],[b,a,0])
+                a=(np.linalg.norm(sols[-1]/sols[-SNnum])-np.linalg.norm(sols[-SNnum]/sols[-SNnum]))/(epsilons[-1]-epsilons[-SNnum])
+                b=0.5*((np.linalg.norm(sols[-1]/sols[-SNnum])+np.linalg.norm(sols[-SNnum]/sols[-SNnum]) )-a*(epsilons[-1]+epsilons[-SNnum]))
+                sol=leastsq(lambda x: x[0]+x[1]*np.linalg.norm(sols[-SNnum:]/sols[-SNnum],axis=1) +x[2]*np.linalg.norm(sols[-SNnum:]/sols[-SNnum],axis=1)**2-epsilons[-SNnum:],[b,a,0])
                 #Note: we have uncertainty in the fit we could include
-                if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<(epsilon1-epsilon0)/steps:
+                # if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<(epsilon1-epsilon0)/steps:
+                if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<0.5*depsilon:
                     bif=2
                     if output:
                         print('\nSaddle-node bifurcation!',epsilon)
@@ -218,7 +222,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
         else:
             epsilon=epsilons[-1]
             if output:
-                print('\nBranch lost! decreasing step %.4f %.4f\t\r'%(epsilon,depsilon), end='')
+                print('\nBranch lost! decreasing step %.4f %.4f\t\n'%(epsilon,depsilon), end='')
             mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
             depsilon=depsilon/2
 
