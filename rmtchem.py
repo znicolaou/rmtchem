@@ -83,7 +83,7 @@ def hess(t,X,eta,nu,k,XD1,XD2,nu2=[]):
 def steady(X0, eta, nu, k, XD1, XD2):
     # sol=root(lambda x:func(0,np.exp(x),eta,nu,k,XD1,XD2),x0=np.log(X0),jac=lambda x:jac(0,np.exp(x),eta,nu,k,XD1,XD2)*np.exp(x), method='hybr', options={'xtol':1e-6})
     # return sol.success,np.exp(sol.x)
-    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-10})
+    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-8})
     return sol.success,sol.x
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
@@ -138,7 +138,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     drives[np.where(XD1!=0)[0]]=1
     bif=0
     count=0
-    SNnum=5
+    SNnum=10
     dX=X0
     depmin=(epsilon1-epsilon0)/steps/1e6
 
@@ -183,15 +183,18 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
 
             #Check if Saddle Node
-            # if np.max(np.real(eval))>-1e-2 and len(sols)>SNnum:
             if np.min(np.abs(eval))<1e-2 and len(sols)>SNnum:
-                # ys=np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)
+                #Fit both smallest eigenvalue and norms to quadratic
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=epsilons[-SNnum:]
                 sol=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xs[-1],(xs[-1]-xs[0])/ys[0]**2])
+                ys=np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)
+                xs=epsilons[-SNnum:]
+                sol2=leastsq(lambda x: x[0]+x[1]*ys+x[2]*ys**2-xs,[xs[-1],(xs[-1]-xs[0])/ys[0],0])
                 fn=np.linalg.norm(sol[0][0]+sol[0][1]*ys**2-xs)
-                xn=np.abs(sol[0][0]-epsilon)
-                if sol[0][0]+depsilon>=epsilon and xn<(epsilon1-epsilon0)/steps and fn<1e-2:
+                xn1=sol[0][0]-epsilon
+                xn2=sol2[0][0]-sol2[0][1]**2/(4*sol2[0][2])-epsilon
+                if xn1<depsilon and xn2<depsilon and xn1>0 and xn2>0:
                     if bif==0:
                         bif=2
                     if output:
