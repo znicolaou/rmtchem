@@ -160,11 +160,11 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
             #Check if overshoot before saddle-node.
             #We should more generally check if the index changes
-            if len(epsilons)>1 and np.linalg.norm(solx-(sols[-1]+dX)) > 1e0:
+            if len(epsilons)>1 and np.linalg.norm(solx-(sols[-1]+dX)) > np.linalg.norm(dX)*1e-1:
             # if (bif==0 and np.max(np.real(eval))>0):
                 epsilon=epsilons[-1]
                 if output:
-                    print('changed branches! decreasing step %.4f \t%.4f\t%.4f\n'%(epsilon,depsilon,np.linalg.norm((solx-X0)/dX,ord=np.inf)), end='')
+                    print('changed branches! decreasing step %.4f \t%.4f\t%.4f\t%.4f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX)), end='')
                 mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
                 depsilon=depsilon/2
 
