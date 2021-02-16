@@ -213,7 +213,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                     break
 
                 # If expected bifurcation is less than next step, decrease step
-                if depsilon>np.min(np.abs([xn1,xn2])):
+                if xn1>0 and depsilon>np.min(np.abs([xn1,xn2])) and xn1>0:
                     print('\nBifurcation expected, decreasing step!\n')
                     epsilon=epsilons[-1]
                     mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
