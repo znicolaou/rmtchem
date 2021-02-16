@@ -189,7 +189,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=epsilons[-SNnum:]
                 sol=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xs[-1],(xs[-1]-xs[0])/ys[0]**2])
-                ys=np.linalg.norm(sols[-SNnum:]/sols[-SNnum],axis=1)
+                ys=np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)
                 xs=epsilons[-SNnum:]
                 sol2=leastsq(lambda x: x[0]+x[1]*ys+x[2]*ys**2-xs,[xs[-1],(xs[-1]-xs[0])/ys[0],0])
                 fn=np.linalg.norm(sol[0][0]+sol[0][1]*ys**2-xs)
