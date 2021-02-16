@@ -183,7 +183,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
             #Check if Saddle Node
             # if np.max(np.real(eval))>-1e-2 and len(sols)>SNnum:
-            if np.min(np.abs(eval))<1e-2 len(sols)>SNnum:
+            if np.min(np.abs(eval))<1e-2 and len(sols)>SNnum:
                 # ys=np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=epsilons[-SNnum:]
