@@ -35,11 +35,11 @@ def get_network(n,nr,na=0):
         deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
         if deltaG>0:
             k[2*i]=np.random.exponential(scale=deltaG)
-            k[2*i]=np.random.random()
+            # k[2*i]=np.random.random()
             k[2*i+1]=k[2*i]*np.exp(-deltaG)
         else:
             k[2*i+1]=np.random.exponential(scale=-deltaG)
-            k[2*i+1]=np.random.random()
+            # k[2*i+1]=np.random.random()
             k[2*i]=k[2*i+1]*np.exp(deltaG)
 
     return eta,nu,k,G
