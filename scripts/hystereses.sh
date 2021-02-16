@@ -18,10 +18,10 @@ ZGN_ns="64 128 256"
 ZGN_cs="0.3 0.4 0.5"
 ZGN_ds="0.05 0.1 0.15"
 ZGN_as="0 0.1 0.2"
-ZGN_ns="64"
-ZGN_cs="0.5"
+ZGN_ns="32"
+ZGN_cs="0.5 1.0 2.0"
 ZGN_ds="0.1"
-ZGN_as="0"
+ZGN_as="0 0.25 0.5"
 
 jid=$((SLURM_ARRAY_TASK_ID-1))
 
