@@ -140,7 +140,8 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     count=0
     SNnum=10
     dX=X0
-    depmin=(epsilon1-epsilon0)/steps/1e6
+    depmin=(epsilon1-epsilon0)/steps/1e3
+    epthrs=(epsilon1-epsilon0)/steps
 
     while epsilon<epsilon1:
         if output:
@@ -157,7 +158,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 if output:
                     print('\nChanged branches! decreasing step %.4f \t%.4f\t%.4f\t%.4f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX)), end='')
                 mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
-                depsilon=depsilon/2
+                depsilon=depsilon/1.5
 
                 if depsilon<(epsilon1-epsilon0)/steps/1000:
                     if output:
@@ -183,18 +184,20 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
 
 
             #Check if Saddle Node
-            if np.min(np.abs(eval))<1e-2 and len(sols)>SNnum:
+            if  len(sols)>SNnum:
                 #Fit both smallest eigenvalue and norms to quadratic
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=epsilons[-SNnum:]
                 sol=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xs[-1],(xs[-1]-xs[0])/ys[0]**2])
-                ys=np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)
+                ys=np.linalg.norm(sols[-SNnum:]/sols[-SNnum],axis=1)
                 xs=epsilons[-SNnum:]
                 sol2=leastsq(lambda x: x[0]+x[1]*ys+x[2]*ys**2-xs,[xs[-1],(xs[-1]-xs[0])/ys[0],0])
                 fn=np.linalg.norm(sol[0][0]+sol[0][1]*ys**2-xs)
                 xn1=sol[0][0]-epsilon
                 xn2=sol2[0][0]-sol2[0][1]**2/(4*sol2[0][2])-epsilon
-                if xn1<depsilon and xn2<depsilon and xn1>-depsilon and xn2>-depsilon:
+                if depsilon>0.5*np.min(np.abs([xn1,xn2])):
+                    depsilon=depsilon/1.5
+                if np.min(np.abs(eval))<1e-2 and xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
                     if bif==0:
                         bif=2
                     if output:
@@ -206,12 +209,12 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             if count/10==1:
                 count=0
                 if depsilon<(epsilon1-epsilon0)/steps/2:
-                    depsilon=depsilon*2
+                    depsilon=depsilon*1.5
 
             # half the stepsize until the relative change is small
             dX=-np.linalg.solve(mat,depsilon*XD1)
             while np.max(np.abs(dX/solx)) > 1e-1:
-                depsilon=depsilon/2
+                depsilon=depsilon/1.5
                 dX=-np.linalg.solve(mat,depsilon*XD1)
                 count=0
 
@@ -229,7 +232,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             if output:
                 print('\nBranch lost! decreasing step %.4f %.4f\t\n'%(epsilon,depsilon), end='')
             mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
-            depsilon=depsilon/2
+            depsilon=depsilon/1.5
 
 
             if depsilon<depmin:
