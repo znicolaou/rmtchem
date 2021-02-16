@@ -198,7 +198,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 # if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<depsilon:
                 # if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<(epsilon1-epsilon0)/steps:
                 # print('%.4f\t%.4f\t\r'%(fn, xn))
-                if xn<(epsilon1-epsilon0)/steps and fn<1e-2:
+                if sol[0][0]>=epsilon and xn<(epsilon1-epsilon0)/steps and fn<1e-2:
                     if bif==0:
                         bif=2
                     if output:
