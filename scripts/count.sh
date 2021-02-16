@@ -17,6 +17,7 @@ for n in $ns; do
           rm $filebase/${n}_${c}_${d}_${a}.txt
         fi
         tail -qn1 $filebase/${n}/${c}/${d}/${a}/* > $filebase/${n}_${c}_${d}_${a}.txt;
+	wc -l $filebase/${n}_${c}_${d}_${a}.txt
       done
     done
   done
