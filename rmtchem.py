@@ -138,7 +138,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     drives[np.where(XD1!=0)[0]]=1
     bif=0
     count=0
-    SNnum=10
+    SNnum=5
     dX=X0
     depmin=(epsilon1-epsilon0)/steps/1e3
     epthrs=(epsilon1-epsilon0)/steps
@@ -197,6 +197,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 xn2=sol2[0][0]-sol2[0][1]**2/(4*sol2[0][2])-epsilon
                 if depsilon>0.5*np.min(np.abs([xn1,xn2])):
                     depsilon=depsilon/1.5
+
                 if np.min(np.abs(eval))<1e-2 and xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
                     if bif==0:
                         bif=2
