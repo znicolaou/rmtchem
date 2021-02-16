@@ -138,8 +138,9 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     drives[np.where(XD1!=0)[0]]=1
     bif=0
     count=0
-    SNnum=10
+    SNnum=5
     dX=X0
+    depmin=(epsilon1-epsilon0)/steps/1e10
 
     while epsilon<epsilon1:
         if output:
@@ -197,7 +198,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 # if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<depsilon:
                 # if np.abs(sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon)<(epsilon1-epsilon0)/steps:
                 # print('%.4f\t%.4f\t\r'%(fn, xn))
-                if xn<(epsilon1-epsilon0)/steps:
+                if xn<(epsilon1-epsilon0)/steps and fn<1e-2:
                     if bif==0:
                         bif=2
                     if output:
@@ -218,7 +219,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 dX=-np.linalg.solve(mat,depsilon*XD1)
                 count=0
 
-            if depsilon<(epsilon1-epsilon0)/steps/1000:
+            if depsilon<depmin:
                 if output:
                     print('\nFailed to converge! ',epsilon)
                 bif=-1
@@ -235,7 +236,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             depsilon=depsilon/2
 
 
-            if depsilon<(epsilon1-epsilon0)/steps/1000:
+            if depsilon<depmin:
                 if output:
                     print('\nFailed to converge! ',epsilon)
                 bif=-1
