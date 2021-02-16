@@ -181,15 +181,29 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             #Check if Saddle Node
             if  len(sols)>SNnum:
                 #Fit both smallest eigenvalue and norms to quadratic
-                ys=np.min(np.abs(evals[-SNnum:]),axis=1)
-                xs=epsilons[-SNnum:]
-                sol=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xs[-1],(xs[-1]-xs[0])/ys[0]**2])
                 ys=np.linalg.norm(sols[-SNnum:]/sols[-1],axis=1)
                 xs=epsilons[-SNnum:]
-                sol2=leastsq(lambda x: x[0]+x[1]*ys+x[2]*ys**2-xs,[xs[-1],(xs[-1]-xs[0])/ys[0],0])
-                fn=np.linalg.norm(sol[0][0]+sol[0][1]*ys**2-xs)
-                xn1=sol[0][0]-epsilon
-                xn2=sol2[0][0]-sol2[0][1]**2/(4*sol2[0][2])-epsilon
+                ym=ys[-1]
+                xm=xs[-1]
+                x0=xs[0]
+                y0=ys[0]
+                xs=np.concatenate([xs,np.flip(xs)])
+                ys=np.concatenate([ys,np.flip(2*ys[-1]-ys)])
+                sol=leastsq(lambda x: x[0]+x[1]*(ys-x[2])**2-xs, [xm,(x0-xm)/(y0-ym)**2,ym])
+
+                ys=np.min(np.abs(evals[-SNnum:]),axis=1)
+                xs=epsilons[-SNnum:]
+                ym=ys[-1]
+                xm=xs[-1]
+                x0=xs[0]
+                y0=ys[0]
+                xs=np.concatenate([xs,np.flip(xs)])
+                ys=np.concatenate([ys,np.flip(-ys)])
+                sol2=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xm,(xm-x0)/y0**2])
+
+                xn1=sol2[0][0]-epsilon
+                xn2=sol2[0][0]-epsilon
+                # xn2=sol[0][0]-sol[0][1]**2/(4*sol[0][2])-epsilon
 
                 if np.min(np.abs(eval))<1e-2 and xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
                     if bif==0:
@@ -199,10 +213,11 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                     break
 
                 # If expected bifurcation is less than next step, decrease step
-                if depsilon>np.max(np.abs([xn1,xn2]))/2:
+                if depsilon>np.min(np.abs([xn1,xn2])):
+                    print('\nBifurcation expected, decreasing step!\n')
                     epsilon=epsilons[-1]
                     mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
-                    depsilon=depsilon/2
+                    depsilon=depsilon/10
                     dX=-np.linalg.solve(mat,depsilon*XD1)
                     X0=sols[-1]+dX
                     epsilon=epsilon+depsilon
