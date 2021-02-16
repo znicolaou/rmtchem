@@ -197,9 +197,12 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                     if output:
                         print('\nSaddle-node bifurcation!',epsilon)
                     break
-                if depsilon>0.5*np.max(np.abs([xn1,xn2])):
-                    depsilon=depsilon/1.5
-                    print('\ntesting\n')
+
+                # If expected bifurcation is less than next step, decrease step
+                if depsilon>np.max(np.abs([xn1,xn2]))/2:
+                    epsilon=epsilons[-1]
+                    mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
+                    depsilon=depsilon/2
                     dX=-np.linalg.solve(mat,depsilon*XD1)
                     X0=sols[-1]+dX
                     epsilon=epsilon+depsilon
