@@ -138,7 +138,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
     drives[np.where(XD1!=0)[0]]=1
     bif=0
     count=0
-    SNnum=3
+    SNnum=5
     dX=X0
     depmin=(epsilon1-epsilon0)/steps/1e3
     epthrs=(epsilon1-epsilon0)/steps/1e1
@@ -159,7 +159,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             eval,evec=np.linalg.eig(mat)
 
             #Check if solution changed more than desired
-            if len(epsilons)>1 and (np.linalg.norm(solx-(sols[-1]+dX)) > 1.1*np.linalg.norm(dX) or np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.25):
+            if len(epsilons)>1 and (np.linalg.norm(solx-(sols[-1]+dX)) > 1.1*np.linalg.norm(dX) or np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.75):
                 epsilon=epsilons[-1]
                 if output:
                     print('\nChanged too much! decreasing step %.6f \t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX),np.min(np.abs(eval)),np.min(np.abs(evals[-1]))), end='')
