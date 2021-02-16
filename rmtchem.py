@@ -178,11 +178,6 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 if stop:
                     break
 
-            sols.append(solx)
-            epsilons.append(epsilon)
-            evals.append(eval)
-
-
             #Check if Saddle Node
             if  len(sols)>SNnum:
                 #Fit both smallest eigenvalue and norms to quadratic
@@ -195,8 +190,6 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 fn=np.linalg.norm(sol[0][0]+sol[0][1]*ys**2-xs)
                 xn1=sol[0][0]-epsilon
                 xn2=sol2[0][0]-sol2[0][1]**2/(4*sol2[0][2])-epsilon
-                if depsilon>0.5*np.max(np.abs([xn1,xn2])):
-                    depsilon=depsilon/1.5
 
                 if np.min(np.abs(eval))<1e-2 and xn1<epthrs and xn2<epthrs and xn1>-depsilon and xn2>-depsilon:
                     if bif==0:
@@ -204,7 +197,17 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                     if output:
                         print('\nSaddle-node bifurcation!',epsilon)
                     break
+                if depsilon>0.5*np.max(np.abs([xn1,xn2])):
+                    depsilon=depsilon/1.5
+                    print('\ntesting\n')
+                    dX=-np.linalg.solve(mat,depsilon*XD1)
+                    X0=sols[-1]+dX
+                    epsilon=epsilon+depsilon
+                    continue
 
+            sols.append(solx)
+            epsilons.append(epsilon)
+            evals.append(eval)
             # Try to increase the step size if last 10 successful
             count=count+1
             if count/10==1:
