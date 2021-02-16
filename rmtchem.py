@@ -205,12 +205,13 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                             print('\nSaddle-node bifurcation!',epsilon)
                         break
 
-                    if  depsilon>xn2:
+                    if  np.abs(depsilon)>np.abs(xn2):
+                        count=0
                         if output:
                             print('\nBifurcation expected, decreasing step! \t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,xn2),end='')
                         epsilon=epsilons[-1]
                         mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
-                        depsilon=depsilon/10
+                        depsilon=depsilon/2
                         dX=-np.linalg.solve(mat,depsilon*XD1)
                         X0=sols[-1]+dX
                         epsilon=epsilon+depsilon
@@ -225,12 +226,12 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             if count/10==1:
                 count=0
                 if depsilon<(epsilon1-epsilon0)/steps/2:
-                    depsilon=depsilon*1.5
+                    depsilon=depsilon*2
 
             # half the stepsize until the relative expected change is small
             dX=-np.linalg.solve(mat,depsilon*XD1)
             while np.max(np.abs(dX/solx)) > 1e-1:
-                depsilon=depsilon/1.5
+                depsilon=depsilon/2
                 dX=-np.linalg.solve(mat,depsilon*XD1)
                 count=0
 
@@ -238,20 +239,12 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             epsilon=epsilon+depsilon
 
         else:
-            print('test')
+            count=0
             epsilon=epsilons[-1]
             if output:
                 print('\nBranch lost! decreasing step %.6f %.6f\t\n'%(epsilon,depsilon), end='')
             mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
-            depsilon=depsilon/1.5
-
-
-            if depsilon<depmin:
-                if output:
-                    print('\nFailed to converge! ',epsilon)
-                bif=-1
-                break
-
+            depsilon=depsilon/2
             dX=-np.linalg.solve(mat,depsilon*XD1)
             X0=sols[-1]+dX
             epsilon=epsilon+depsilon
