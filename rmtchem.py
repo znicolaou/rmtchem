@@ -358,7 +358,7 @@ if __name__ == "__main__":
 
 
     if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
-        Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, 100/steps, output)
+        Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, 100/steps, output=output,stop=True)
         epsilon=epsilons[-1]
 
     stop=timeit.default_timer()
