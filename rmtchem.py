@@ -195,15 +195,32 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                     sol2=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xm,(xm-x0)/y0**2])
                     xn2=sol2[0][0]-epsilon
 
-                    if np.abs(xn2)<epthrs:
+                    if xn2<epthrs:
                         sols.append(solx)
                         epsilons.append(epsilon)
                         evals.append(eval)
-                        if bif==0:
-                            bif=2
-                        if output:
-                            print('\nSaddle-node bifurcation!',epsilon)
-                        break
+                        #We have a guess for the position of the SN
+                        #given the hessian, we can find the estimated other branch
+                        ind=np.argmin(np.abs(eval))
+                        ev=np.real(evec[:,ind])
+                        iev=np.real(np.linalg.inv(evec))[ind]
+                        alpha=XD1.dot(iev)/hess(0,solx,eta,nu,k,(1+epsilon)*XD1,XD2).dot(ev).dot(ev).dot(iev)
+                        X2=solx-4*ev*np.sqrt(xn2*alpha/2)
+                        success2,sol2x=steady(X2,eta,nu,k,(1+epsilon)*XD1,XD2)
+                        eval2,evec2=np.linalg.eig(jac(0,sol2x,eta,nu,k,(1+epsilon)*XD1,XD2))
+                        X3=solx+4*ev*np.sqrt(xn2*alpha/2)
+                        success3,sol3x=steady(X3,eta,nu,k,(1+epsilon)*XD1,XD2)
+                        eval3,evec3=np.linalg.eig(jac(0,sol3x,eta,nu,k,(1+epsilon)*XD1,XD2))
+
+                        if (np.linalg.norm(solx-sol2x) < 0.01*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))) and (np.linalg.norm(solx-sol3x) < 0.1*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
+                            if output:
+                                print('\nSecond branch not found!%i\t%i\t%f\t%f\t%f\t%f\n'%(success2,success3,np.max(np.real(eval2)),np.max(np.real(eval3)),np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
+                        else:
+                            if bif==0:
+                                bif=2
+                            if output:
+                                print('\nSaddle-node bifurcation!',epsilon)
+                            break
 
                     if  np.abs(depsilon)>np.abs(xn2):
                         count=0
