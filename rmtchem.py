@@ -77,7 +77,7 @@ def hess(t,X,eta,nu,k,XD1,XD2,nu2=[]):
     return np.tensordot((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis],nu2/X[np.newaxis,np.newaxis,:]/X[np.newaxis,:,np.newaxis],axes=([0],[0]))
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-8})
+    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
     return sol.success,sol.x
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
@@ -119,7 +119,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
     steps=0
     scount=0
 
-    while ((ep1>ep0 and ep<=ep1) or (ep1<ep0 and ep>=ep1)) and steps<stepsmax:
+    while ((ep1>ep0 and ep<=ep1 and ep>=ep0) or (ep1<ep0 and ep>=ep1 and ep<=ep0)) and steps<stepsmax:
         steps=steps+1
         # if output:
         print('%.6f\t%i\t\r'%((ep-ep0)/(ep1-ep0),steps),end='')
@@ -137,10 +137,10 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
             eval,evec=np.linalg.eig(mat)
 
             #Check if solution changed more than desired
-            if len(eps)>1 and (np.linalg.norm(solx-(sols[-1]+dX)) > 1e1*np.linalg.norm(dX) or np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.75):
+            if len(eps)>1 and (np.linalg.norm(solx-(sols[-1]+dX)) > 1e1*np.linalg.norm(dX) or np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.75 or np.max(np.real(eval))/np.max(np.real(evals[-1]))<0) and scount>SNnum:
                 ep=eps[-1]
                 if output:
-                    print('\nChanged too much! decreasing step %.6f \t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n'%(ep,dep,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX),np.min(np.abs(eval)),np.min(np.abs(evals[-1]))), end='')
+                    print('\nChanged too much! decreasing step\t%.6f \t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n'%(ep,dep,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX),np.min(np.abs(eval)),np.min(np.abs(evals[-1])),np.max(np.real(eval)),np.max(np.real(evals[-1]))), end='')
                 mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
                 dep=dep/2
 
@@ -212,21 +212,28 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
                             #Change branches and direction or break if branch is found
                             if found:
                                 scount=0
+                                success,solx=steady(X0,eta,nu,k,(1+ep)*XD1,XD2)
+
                                 if bif==0:
                                     bif=2
                                 if output:
                                     print('\nSaddle-node bifurcation!\t%.6f\t%i\t%i\t%f\t%f\n'%(dep,success2,success3,np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
 
-                                sols.append(X0)
-                                mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
-                                eval,evec=np.linalg.eig(mat)
-                                eps.append(ep)
-                                evals.append(eval)
+
+                                if success:
+                                    sols.append(solx)
+                                    mat=jac(0,solx,eta,nu,k,(1+ep)*XD1,XD2)
+                                    eval,evec=np.linalg.eig(mat)
+                                    eps.append(ep)
+                                    evals.append(eval)
+                                else:
+                                    print("Failed convergence")
+                                    break
 
                                 if stop:
                                     break
                                 else:
-                                    dep=dep*-1
+                                    dep=-dep
                                     dX=-np.linalg.solve(mat,dep*XD1)
                                     X0=sols[-1]+dX
                                     ep=ep+dep
