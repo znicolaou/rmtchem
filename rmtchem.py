@@ -160,7 +160,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             eval,evec=np.linalg.eig(mat)
 
             #Check if solution changed more than desired
-            if len(epsilons)>1 and (np.linalg.norm(solx-(sols[-1]+dX)) > 1.1*np.linalg.norm(dX) or np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.75):
+            if len(epsilons)>1 and (np.linalg.norm(solx-(sols[-1]+dX)) > 1e1*np.linalg.norm(dX) or np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.75):
                 epsilon=epsilons[-1]
                 if output:
                     print('\nChanged too much! decreasing step %.6f \t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n'%(epsilon,depsilon,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX),np.min(np.abs(eval)),np.min(np.abs(evals[-1]))), end='')
@@ -185,7 +185,8 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=epsilons[-SNnum:]
                 ym=ys[-1]
-                xm=xs[-1]+(xs[-1]-xs[-2])/(ys[-1]-ys[-2])*ys[-2]
+                xm=xs[-1]+(xs[-1]-xs[-3])/(ys[-1]-ys[-3])*ys[-3]
+                # xm=xs[-1]+(xs[-1]-xs[0])/(ys[-1]-ys[0])*ys[0]
                 x0=xs[0]
                 y0=ys[0]
 
@@ -207,20 +208,43 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
                         alpha=XD1.dot(iev)/hess(0,solx,eta,nu,k,(1+epsilon)*XD1,XD2).dot(ev).dot(ev).dot(iev)
                         X2=solx-4*ev*np.sqrt(xn2*alpha/2)
                         success2,sol2x=steady(X2,eta,nu,k,(1+epsilon)*XD1,XD2)
-                        eval2,evec2=np.linalg.eig(jac(0,sol2x,eta,nu,k,(1+epsilon)*XD1,XD2))
-                        X3=solx+4*ev*np.sqrt(xn2*alpha/2)
-                        success3,sol3x=steady(X3,eta,nu,k,(1+epsilon)*XD1,XD2)
-                        eval3,evec3=np.linalg.eig(jac(0,sol3x,eta,nu,k,(1+epsilon)*XD1,XD2))
+                        found=False
+                        if success2 and (np.linalg.norm(solx-sol2x) > 0.01*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
+                            found=True
+                            X0=sol2x
 
-                        if (np.linalg.norm(solx-sol2x) < 0.01*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))) and (np.linalg.norm(solx-sol3x) < 0.1*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
-                            if output:
-                                print('\nSecond branch not found!%i\t%i\t%f\t%f\t%f\t%f\n'%(success2,success3,np.max(np.real(eval2)),np.max(np.real(eval3)),np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
                         else:
+                            X3=solx+4*ev*np.sqrt(xn2*alpha/2)
+                            success3,sol3x=steady(X3,eta,nu,k,(1+epsilon)*XD1,XD2)
+                            if success3 and (np.linalg.norm(solx-sol3x) > 0.01*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
+                                found=True
+                                X0=sol3x
+                            else:
+                                if output:
+                                    print('\nSecond branch not found!\t%i\t%i\t%f\t%f\n'%(success2,success3,np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
+
+                        if found:
                             if bif==0:
                                 bif=2
                             if output:
                                 print('\nSaddle-node bifurcation!',epsilon)
-                            break
+
+                            success,solx=steady(X0,eta,nu,k,(1+epsilon)*XD1,XD2)
+                            sols.append(solx)
+                            mat=jac(0,sols[-1],eta,nu,k,(1+epsilon)*XD1,XD2)
+                            eval,evec=np.linalg.eig(mat)
+                            epsilons.append(epsilon)
+                            evals.append(eval)
+
+                            if stop:
+                                break
+                            else:
+                                depsilon=depsilon*-1
+                                dX=-np.linalg.solve(mat,depsilon*XD1)
+                                X0=sols[-1]+dX
+                                epsilon=epsilon+depsilon
+
+
 
                     if  np.abs(depsilon)>np.abs(xn2):
                         count=0
@@ -242,7 +266,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, epsilon0, epsilon1, steps, output=Tru
             count=count+1
             if count/10==1:
                 count=0
-                if depsilon<(epsilon1-epsilon0)/steps/2:
+                if np.abs(depsilon)<(epsilon1-epsilon0)/steps/2:
                     depsilon=depsilon*2
 
             # half the stepsize until the relative expected change is small
