@@ -137,7 +137,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
             eval,evec=np.linalg.eig(mat)
 
             #Check if solution changed more than desired
-            if len(eps)>1 and (np.linalg.norm(solx-(sols[-1]+dX)) > 1e1*np.linalg.norm(dX) or np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.75 or np.max(np.real(eval))/np.max(np.real(evals[-1]))<0) and scount>SNnum:
+            if len(eps)>1 and (np.linalg.norm(solx-(sols[-1]+dX)) > 1e1*np.linalg.norm(dX) or np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.75) and scount>SNnum:
                 ep=eps[-1]
                 if output:
                     print('\nChanged too much! decreasing step\t%.6f \t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n'%(ep,dep,np.linalg.norm(solx-(sols[-1]+dX)),np.linalg.norm(dX),np.min(np.abs(eval)),np.min(np.abs(evals[-1])),np.max(np.real(eval)),np.max(np.real(evals[-1]))), end='')
