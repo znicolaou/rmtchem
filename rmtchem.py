@@ -105,7 +105,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, prog=False):
         pbar.finish()
     return Xs,success
 
-def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1e-2, epthrs=1e-3, output=True, stop=True):
+def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1e-2, epthrs=1e-3, stepsmax=1e6, output=True, stop=True):
     n=len(X0)
     eps=[]
     sols=[]
@@ -116,10 +116,13 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
     dX=X0
     dep=dep0
     ep=ep0
+    steps=0
+    scount=0
 
-    while ((ep1>ep0 and ep<=ep1) or (ep1<ep0 and ep>=ep1)):
-        if output:
-            print('%.6f\t\r'%((ep-ep0)/(ep1-ep0)),end='')
+    while ((ep1>ep0 and ep<=ep1) or (ep1<ep0 and ep>=ep1)) and steps<stepsmax:
+        steps=steps+1
+        # if output:
+        print('%.6f\t%i\t\r'%((ep-ep0)/(ep1-ep0),steps),end='')
 
         if np.abs(dep)<depmin:
             if output:
@@ -147,6 +150,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
                 continue
 
             #Check if Hopf
+            #TODO: check if this is subcritical or supercritical with the hessian
             if np.max(np.real(eval))>0 and np.abs(np.imag(eval[np.argmax(np.real(eval))]))>0:
                 if output and bif==0:
                     print('\nHopf bifurcation!',ep)
@@ -155,7 +159,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
                     break
 
             #Check if Saddle Node
-            if  len(sols)>SNnum:
+            if  scount>SNnum:
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=eps[-SNnum:]
                 ym=ys[-1]
@@ -180,8 +184,10 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
                         iev=np.real(np.linalg.inv(evec))[ind]
                         alpha=XD1.dot(iev)/hess(0,solx,eta,nu,k,(1+ep)*XD1,XD2).dot(ev).dot(ev).dot(iev)
                         if xn2*alpha>0:
-                            X2=solx-4*ev*np.sqrt(xn2*alpha/2)
+                            X2=solx-3*ev*np.sqrt(xn2*alpha/2)
                             success2,sol2x=steady(X2,eta,nu,k,(1+ep)*XD1,XD2)
+                            X3=solx+3*ev*np.sqrt(xn2*alpha/2)
+                            success3,sol3x=steady(X3,eta,nu,k,(1+ep)*XD1,XD2)
                             found=False
 
                             if success2 and (np.linalg.norm(solx-sol2x) > 0.01*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
@@ -189,14 +195,12 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
                                 X0=sol2x
 
                             else:
-                                X3=solx+4*ev*np.sqrt(xn2*alpha/2)
-                                success3,sol3x=steady(X3,eta,nu,k,(1+ep)*XD1,XD2)
                                 if success3 and (np.linalg.norm(solx-sol3x) > 0.01*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
                                     found=True
                                     X0=sol3x
                                 else:
                                     if output:
-                                        print('\nSecond branch not found!\t%i\t%i\t%f\t%f\n'%(success2,success3,np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
+                                        print('\nSecond branch not found!\t%.6f\t%i\t%i\t%f\t%f\n'%(dep,success2,success3,np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
                                     if success2 and success3:
                                         mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
                                         dep=dep/2
@@ -207,13 +211,13 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
 
                             #Change branches and direction or break if branch is found
                             if found:
+                                scount=0
                                 if bif==0:
                                     bif=2
                                 if output:
-                                    print('\nSaddle-node bifurcation!',ep)
+                                    print('\nSaddle-node bifurcation!\t%.6f\t%i\t%i\t%f\t%f\n'%(dep,success2,success3,np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
 
-                                success,solx=steady(X0,eta,nu,k,(1+ep)*XD1,XD2)
-                                sols.append(solx)
+                                sols.append(X0)
                                 mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
                                 eval,evec=np.linalg.eig(mat)
                                 eps.append(ep)
@@ -243,6 +247,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1, dep0, depmin=1e-6, depmax=1
             sols.append(solx)
             eps.append(ep)
             evals.append(eval)
+            scount=scount+1
 
             # Try to increase the step size if last 10 successful
             count=count+1
