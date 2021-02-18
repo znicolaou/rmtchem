@@ -217,7 +217,9 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-6, depma
                                     eps.append(ep)
                                     evals.append(eval)
                                 else:
-                                    print("Failed convergence")
+                                    if output:
+                                        print("Failed convergence at saddle-node")
+                                    bif=-1
                                     break
 
                                 if stop:
