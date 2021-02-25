@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<!--Converted with LaTeX2HTML 2008 (1.71)
+original version by:  Nikos Drakos, CBLU, University of Leeds
+* revised and updated by:  Marcus Hennecke, Ross Moore, Herb Swan
+* with significant contributions from:
+  Jens Lippmann, Marek Rouchal, Martin Wilck and others -->
+<HTML>
+<HEAD>
+<TITLE>Plotting the output of a continuation of limit cycles</TITLE>
+<META NAME="description" CONTENT="Plotting the output of a continuation of limit cycles">
+<META NAME="keywords" CONTENT="ManualJan2018 ">
+<META NAME="resource-type" CONTENT="document">
+<META NAME="distribution" CONTENT="global">
+
+<META NAME="Generator" CONTENT="LaTeX2HTML v2008">
+<META HTTP-EQUIV="Content-Style-Type" CONTENT="text/css">
+
+<LINK REL="STYLESHEET" HREF="ManualJan2018 .css">
+
+<LINK REL="next" HREF="node56.html">
+<LINK REL="previous" HREF="node54.html">
+<LINK REL="up" HREF="node52.html">
+<LINK REL="next" HREF="node56.html">
+</HEAD>
+
+<BODY >
+
+<DIV CLASS="navigation"><!--Navigation Panel-->
+<A NAME="tex2html925"
+  HREF="node56.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html921"
+  HREF="node52.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html915"
+  HREF="node54.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A> 
+<A NAME="tex2html923"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents"
+ SRC="/usr/share/latex2html/icons/contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html926"
+  HREF="node56.html">Initialization by time integration</A>
+<B> Up:</B> <A NAME="tex2html922"
+  HREF="node52.html">Continuation of limit cycles</A>
+<B> Previous:</B> <A NAME="tex2html916"
+  HREF="node54.html">Discretization of a limit</A>
+ &nbsp; <B>  <A NAME="tex2html924"
+  HREF="node1.html">Contents</A></B> 
+<BR>
+<BR></DIV>
+<!--End of Navigation Panel-->
+
+<H2><A NAME="SECTION00073000000000000000">
+Plotting the output of a continuation of limit cycles</A>
+</H2>
+
+<P>
+A continuation run of limit cycles has the standard form
+
+<P>
+<TT>[x,v,s,h,f]=cont(@limitcycle,x0,v0,opt);</TT>
+
+<P>
+Here <TT>x</TT> is a matrix in which each column corresponds to a computed orbit. The last element of each column contains the value of the active parameter.
+C<SMALL>L/SMALL>_M<SMALL>AT</SMALL>C<SMALL>ONT</SMALL> provides only limited possibilities to visualise the output. Namely, it provides the routine <TT>plotcycle.m</TT> which is to be called
+in the form
+
+<P>
+<TT>plotcycle(x,v,s,e)</TT>
+
+<P>
+where <TT>e</TT> is either a two- or a three-dimensional row vector.
+
+<UL>
+<LI>If <TT>e=[e1,e2]</TT> one must have <!-- MATH
+ $1 \leq e1,e2 \leq nphase$
+ -->
+<SPAN CLASS="MATH"><IMG
+ WIDTH="156" HEIGHT="34" ALIGN="MIDDLE" BORDER="0"
+ SRC="img254.png"
+ ALT="$1 \leq e1,e2 \leq nphase$"></SPAN> and a
+2D plot will be generated in which the projections of the orbits on the <SPAN CLASS="MATH"><IMG
+ WIDTH="60" HEIGHT="36" ALIGN="MIDDLE" BORDER="0"
+ SRC="img255.png"
+ ALT="$(e1,e2)$"></SPAN> coordinate plane are shown. 
+The first and last curves, and the curves with singulaties are in red.
+</LI>
+<LI>If <TT>e=[e1,e2,e3]</TT> then <TT>e1</TT> must be the index of the active parameter, i.e. <TT>e1=size(x,1)</TT> and
+one must have <!-- MATH
+ $1 \leq e2,e3 \leq nphase.$
+ -->
+<SPAN CLASS="MATH"><IMG
+ WIDTH="161" HEIGHT="34" ALIGN="MIDDLE" BORDER="0"
+ SRC="img256.png"
+ ALT="$1 \leq e2,e3 \leq nphase.$"></SPAN> Then a
+3D plot will be generated in which the projections of the orbits on the <SPAN CLASS="MATH"><IMG
+ WIDTH="60" HEIGHT="36" ALIGN="MIDDLE" BORDER="0"
+ SRC="img257.png"
+ ALT="$(e2,e3)$"></SPAN> coordinate plane are shown versus the
+active parameter. The first and last curves, and the curves with singulaties are in red.
+</LI>
+</UL>
+
+<P>
+
+<DIV CLASS="navigation"><HR>
+<!--Navigation Panel-->
+<A NAME="tex2html925"
+  HREF="node56.html">
+<IMG WIDTH="37" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="next"
+ SRC="/usr/share/latex2html/icons/next.png"></A> 
+<A NAME="tex2html921"
+  HREF="node52.html">
+<IMG WIDTH="26" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="up"
+ SRC="/usr/share/latex2html/icons/up.png"></A> 
+<A NAME="tex2html915"
+  HREF="node54.html">
+<IMG WIDTH="63" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="previous"
+ SRC="/usr/share/latex2html/icons/prev.png"></A> 
+<A NAME="tex2html923"
+  HREF="node1.html">
+<IMG WIDTH="65" HEIGHT="24" ALIGN="BOTTOM" BORDER="0" ALT="contents"
+ SRC="/usr/share/latex2html/icons/contents.png"></A>  
+<BR>
+<B> Next:</B> <A NAME="tex2html926"
+  HREF="node56.html">Initialization by time integration</A>
+<B> Up:</B> <A NAME="tex2html922"
+  HREF="node52.html">Continuation of limit cycles</A>
+<B> Previous:</B> <A NAME="tex2html916"
+  HREF="node54.html">Discretization of a limit</A>
+ &nbsp; <B>  <A NAME="tex2html924"
+  HREF="node1.html">Contents</A></B> </DIV>
+<!--End of Navigation Panel-->
+
+</BODY>
+</HTML>
