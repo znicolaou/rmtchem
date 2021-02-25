@@ -9,8 +9,6 @@ from scipy.optimize import leastsq
 from scipy.integrate import solve_ivp
 from scipy.integrate import solve_bvp
 from scipy.linalg import eig
-from IPython.display import clear_output
-
 
 def get_network(n,nr,na=0):
     eta=np.zeros((2*nr,n))
