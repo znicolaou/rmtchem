@@ -89,7 +89,7 @@ def steady(X0, eta, nu, k, XD1, XD2):
         return False,sol.x
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt):
-    sol=solve_ivp(func,(0,t1),X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),max_step=dt,rtol=1e-4,atol=1e-12,jac=jac)
+    sol=solve_ivp(func,(0,t1),X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),max_step=dt,rtol=1e-3,atol=1e-8,jac=jac)
     return sol.t,sol.y,sol.success
 
 def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-6, depmax=1e-2, epthrs=1e-3, stepsmax=1e6, output=True, stop=True):
@@ -373,8 +373,8 @@ if __name__ == "__main__":
             epsilon=epsilons[-1]+100/steps
             ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
             tscale=1/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
-            ts,Xts,success=integrate(Xs[-1],eta,nu,k,(1+epsilon+100/steps)*XD1,XD2,1000*tscale,tscale/10)
-            m0=np.where(ts>100*tscale)[0][0]
+            ts,Xts,success=integrate(Xs[-1],eta,nu,k,(1+epsilon+100/steps)*XD1,XD2,100*tscale,tscale/100)
+            m0=np.where(ts>10*tscale)[0][0]
             sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
 
 
