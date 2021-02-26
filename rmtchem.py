@@ -361,20 +361,21 @@ if __name__ == "__main__":
     evals=np.array([])
     epsilon=0
     sd1=0
+    sd2=0
 
 
     if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
         Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, 0, 100/steps, output=output,stop=True)
         sd1=Sdot(rates(Xs[-1],eta,nu,k))
         #following a bifurcation, integrate the system
-        X0=Xs[-1]
-        epsilon=epsilons[-1]+100/steps
-        ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
-        tscale=1/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
-        ts,Xts,success=integrate(Xs[-1],eta,nu,k,(1+epsilon+100/steps)*XD1,XD2,1000*tscale,tscale/10)
-        print(success)
-        m0=np.where(ts>100*tscale)[0][0]
-        sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+        if bif==2:
+            X0=Xs[-1]
+            epsilon=epsilons[-1]+100/steps
+            ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
+            tscale=1/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
+            ts,Xts,success=integrate(Xs[-1],eta,nu,k,(1+epsilon+100/steps)*XD1,XD2,1000*tscale,tscale/10)
+            m0=np.where(ts>100*tscale)[0][0]
+            sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
 
 
     stop=timeit.default_timer()
