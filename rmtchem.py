@@ -360,22 +360,31 @@ if __name__ == "__main__":
     Xs=np.array([])
     evals=np.array([])
     epsilon=0
-    sd=0
+    sd1=0
 
 
     if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
         Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, 0, 100/steps, output=output,stop=True)
-        epsilon=epsilons[-1]
-        sd=Sdot(rates(Xs[-1],eta,nu,k))
+        sd1=Sdot(rates(Xs[-1],eta,nu,k))
+        #following a bifurcation, integrate the system
+        X0=Xs[-1]
+        epsilon=epsilons[-1]+100/steps
+        ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
+        tscale=1/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
+        ts,Xts,success=integrate(Xs[-1],eta,nu,k,(1+epsilon+100/steps)*XD1,XD2,1000*tscale,tscale/10)
+        print(success)
+        m0=np.where(ts>100*tscale)[0][0]
+        sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,na,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2), file=file)
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd), flush=True)
+        print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'epsilons.npy',epsilons[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
