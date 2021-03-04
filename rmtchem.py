@@ -58,6 +58,8 @@ def Sdot(rates):
     Jm=rates[1::2]
     return np.sum((Jp-Jm)*np.log(Jp/Jm))
 
+def Wdot(X, G, XD1, XD2):
+    return (XD1-XD2*X).dot(G+np.log(X))
 
 def func(t, X, eta, nu, k, XD1, XD2):
     return XD1-XD2*X+rates(X,eta,nu,k).dot(eta-nu)
@@ -89,7 +91,10 @@ def steady(X0, eta, nu, k, XD1, XD2):
         return False,sol.x
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt):
-    sol=solve_ivp(func,(0,t1),X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),max_step=dt,rtol=1e-3,atol=1e-8,jac=jac)
+    try:
+        sol=solve_ivp(func,(0,t1),X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),max_step=dt,rtol=1e-3,atol=1e-8,jac=jac)
+    except Exception:
+        raise
     return sol.t,sol.y,sol.success
 
 def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-6, depmax=1e-2, epthrs=1e-3, stepsmax=1e6, output=True, stop=True):
@@ -362,30 +367,37 @@ if __name__ == "__main__":
     epsilon=0
     sd1=0
     sd2=0
+    wd1=0
+    wd2=0
 
 
     if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
         Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, 0, 100/steps, output=output,stop=True)
         sd1=Sdot(rates(Xs[-1],eta,nu,k))
-        #following a bifurcation, integrate the system
-        if bif==2:
-            X0=Xs[-1]
-            epsilon=epsilons[-1]+100/steps
-            ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
-            tscale=1/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
-            ts,Xts,success=integrate(Xs[-1],eta,nu,k,(1+epsilon+100/steps)*XD1,XD2,100*tscale,tscale/100)
-            m0=np.where(ts>10*tscale)[0][0]
-            sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+        wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
 
+        #following a bifurcation, integrate the system
+        if bif>0:
+            try:
+                X0=Xs[-1]
+                epsilon=epsilons[-1]+1e-1
+                ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
+                tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
+                ts,Xts,success=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1000*tscale,tscale/100)
+                m0=np.where(ts>10*tscale)[0][0]
+                sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+                wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+            except Exception:
+                print('Error integrating seed %i\n'%(seed),end='')
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
     print(n,nr,nd,na,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2), file=file)
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2), flush=True)
+        print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'epsilons.npy',epsilons[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
