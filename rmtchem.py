@@ -92,7 +92,7 @@ def steady(X0, eta, nu, k, XD1, XD2):
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt):
     try:
-        sol=solve_ivp(func,(0,t1),X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),max_step=dt,rtol=1e-3,atol=1e-3,jac=jac)
+        sol=solve_ivp(func,(0,t1),X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),max_step=dt,rtol=1e-3,atol=1e-6,jac=jac)
     except Exception:
         raise
     if not sol.success:
