@@ -92,7 +92,7 @@ def steady(X0, eta, nu, k, XD1, XD2):
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt):
     try:
-        sol=solve_ivp(func,(0,t1),X0,method='Radau',dense_output=True,args=(eta, nu, k, XD1, XD2),max_step=dt,rtol=1e-3,atol=1e-3,jac=jac)
+        sol=solve_ivp(func,(0,t1),X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),max_step=dt,rtol=1e-3,atol=1e-3,jac=jac)
     except Exception:
         raise
     if not sol.success:
@@ -381,11 +381,14 @@ if __name__ == "__main__":
         #following a bifurcation, integrate the system
         if bif>0:
             try:
+                if output:
+                    print('\nIntegrating')
                 X0=Xs[-1]
                 epsilon=epsilons[-1]+1e-1
                 ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
                 tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
-                ts,Xts,success=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1000*tscale,tscale/100)
+                # ts,Xts,success=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1000*tscale,tscale/100)
+                ts,Xts,success=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,100*tscale,tscale/100)
                 m0=np.where(ts>10*tscale)[0][0]
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
