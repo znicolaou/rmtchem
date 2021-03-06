@@ -101,12 +101,18 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
     try:
         while ts[-1]<t1 and not stop:
             if output:
-                print('%i\t%i\t%i\t\r'%(int(ts[-1]/dt), len(ts), len(minds)), end='')
+                print('%i\t%i\t%i   \r'%(int(ts[-1]/dt), len(ts), len(minds)), end='')
             #set the first step according to the previous step??
-            sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
+            # sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
+            # sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
+            sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
+            if not sol.success:
+                sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
+                if not sol.success:
+                    raise Exception()
             Xts=np.concatenate((Xts,sol.y),axis=1)
             ts=np.concatenate((ts,sol.t))
-            dt1=(ts[-1]-ts[-2])/1e6
+            # dt1=(ts[-1]-ts[-2])/1e6
 
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
@@ -124,7 +130,8 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
                     if output:
                         print('\n',len(minds),dt/tscale,sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min))
                     if np.abs(sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min)) < 0.1:
-                        print('\namplitude change negligible!',len(minds))
+                        if output:
+                            print('\namplitude change negligible!',len(minds))
                         stop=True
 
     except Exception:
@@ -428,7 +435,8 @@ if __name__ == "__main__":
                     m0=minds[-100]
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
-            except Exception:
+            except Exception as err:
+                print(err.message)
                 print('Error integrating seed %i\t%i\t%i\t%i\t%i\n'%(seed,n,nr,nd,na),end='')
 
     stop=timeit.default_timer()
