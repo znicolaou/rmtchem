@@ -102,20 +102,20 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
         while ts[-1]<t1 and not stop:
             if output:
                 print('%i\t%i\t%i   \r'%(int(ts[-1]/dt), len(ts), len(minds)), end='')
-            #set the first step according to the previous step??
-            sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-16,jac=jac,max_step=dt,min_step=dt/1e12,first_step=dt1)
+            #scaling the variables by 1/X0 should allow for larger atol
+            # sol=solve_ivp(lambda t,x,eta,nu,k,XD1,XD2: func(t,x*X0,eta,nu,k,XD1,XD2),(0,dt),Xts[:,-1]/X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-16,jac=jac,max_step=dt,min_step=dt/1e12,first_step=dt1)
+            sol=solve_ivp(lambda t,x,eta,nu,k,XD1,XD2: func(t,x*X0,eta,nu,k,XD1,XD2),(0,dt),Xts[:,-1]/X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=lambda t,x,eta,nu,k,XD1,XD2: X0*jac(t,x*X0,eta,nu,k,XD1,XD2),max_step=dt,first_step=dt1)
             if not sol.success:
-                if output:
-                    print('\t\t\t\t\t\tusing BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
-                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-16,jac=jac,max_step=dt,first_step=dt1)
-                if not sol.success:
-                    raise Exception(sol.message)
-            Xts=np.concatenate((Xts,sol.y),axis=1)
+                raise Exception(sol.message)
+                # if output:
+                #     print('\t\t\t\t\t\tusing BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
+                # sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-16,jac=jac,max_step=dt,first_step=dt1)
+                # if not sol.success:
+                #     raise Exception(sol.message)
+            # Xts=np.concatenate((Xts,sol.y),axis=1)
+            Xts=np.concatenate((Xts,X0[:,np.newaxis]*sol.y),axis=1)
             ts=np.concatenate((ts,ts[-1]+sol.t))
-            # dt1=(ts[-1]-ts[-2])/10
-            if dt1<=0.:
-                print(ts[-1],ts[-2],ts[-1]-ts[-2],dt1)
-                raise Exception('negative step')
+            dt1=ts[-1]-ts[-2]
 
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
@@ -429,11 +429,11 @@ if __name__ == "__main__":
                 X0=Xs[-1]
                 epsilon=epsilons[-1]+1e-1
                 ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
-                tscale=np.min([2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))]),1/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))])
+                tscale=np.min([2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))]),10/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))])
 
                 if output:
                     print('\nIntegrating',tscale)
-                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1000*tscale,tscale/100,output=output)
+                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,tscale/100,output=output)
                 m0=minds[-1]
                 if len(minds>100):
                     m0=minds[-100]
