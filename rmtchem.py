@@ -103,16 +103,19 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
             if output:
                 print('%i\t%i\t%i   \r'%(int(ts[-1]/dt), len(ts), len(minds)), end='')
             #set the first step according to the previous step??
-            # sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
-            # sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
-            sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
+            sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-16,jac=jac,max_step=dt,min_step=dt/1e12,first_step=dt1)
             if not sol.success:
-                sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
+                if output:
+                    print('\t\t\t\t\t\tusing BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
+                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-16,jac=jac,max_step=dt,first_step=dt1)
                 if not sol.success:
-                    raise Exception()
+                    raise Exception(sol.message)
             Xts=np.concatenate((Xts,sol.y),axis=1)
-            ts=np.concatenate((ts,sol.t))
-            # dt1=(ts[-1]-ts[-2])/1e6
+            ts=np.concatenate((ts,ts[-1]+sol.t))
+            # dt1=(ts[-1]-ts[-2])/10
+            if dt1<=0.:
+                print(ts[-1],ts[-2],ts[-1]-ts[-2],dt1)
+                raise Exception('negative step')
 
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
@@ -134,14 +137,14 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
                             print('\namplitude change negligible!',len(minds))
                         stop=True
 
-    except Exception:
-        raise
+    except Exception as e:
+        raise e
 
     if not sol.success and output:
         print(sol.message)
     return ts,Xts,sol.success,minds
 
-def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-6, depmax=1e-2, epthrs=1e-3, stepsmax=1e6, output=True, stop=True):
+def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-2, stepsmax=1e6, output=True, stop=True):
     n=len(X0)
     eps=[]
     sols=[]
@@ -426,18 +429,21 @@ if __name__ == "__main__":
                 X0=Xs[-1]
                 epsilon=epsilons[-1]+1e-1
                 ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
-                tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
+                tscale=np.min([2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))]),1/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))])
+
                 if output:
                     print('\nIntegrating',tscale)
-                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,tscale/10,output=output)
+                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1000*tscale,tscale/100,output=output)
+                print(len(minds))
                 m0=minds[-1]
                 if len(minds>100):
                     m0=minds[-100]
+                print(m0)
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
             except Exception as err:
-                print(err.message)
                 print('Error integrating seed %i\t%i\t%i\t%i\t%i\n'%(seed,n,nr,nd,na),end='')
+                print(str(err))
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
