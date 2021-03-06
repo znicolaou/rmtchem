@@ -434,7 +434,6 @@ if __name__ == "__main__":
                 if output:
                     print('\nIntegrating',tscale)
                 ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1000*tscale,tscale/100,output=output)
-                print(len(minds))
                 m0=minds[-1]
                 if len(minds>100):
                     m0=minds[-100]
