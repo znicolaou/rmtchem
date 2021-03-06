@@ -122,7 +122,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
                     if output:
                         print('\n',len(minds),dt/tscale,sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min))
                     if np.abs(sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min)) < 0.1:
-                        print('\namplitude change negligible!')
+                        print('\namplitude change negligible!',len(minds))
                         stop=True
 
     except Exception:
@@ -130,7 +130,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
 
     if not sol.success and output:
         print(sol.message)
-    return ts,Xts,sol.success
+    return ts,Xts,sol.success,minds
 
 def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-6, depmax=1e-2, epthrs=1e-3, stepsmax=1e6, output=True, stop=True):
     n=len(X0)
@@ -420,8 +420,10 @@ if __name__ == "__main__":
                 epsilon=epsilons[-1]+1e-1
                 ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
                 tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
-                ts,Xts,success=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,100*tscale,tscale/10)
-                m0=np.where(ts>10*tscale)[0][0]
+                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,100*tscale,tscale/10)
+                m0=-1
+                if len(minds>100):
+                    m0=minds[-100]
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
             except Exception:
@@ -429,6 +431,7 @@ if __name__ == "__main__":
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
+    epsilon=epsilons[-1]
     print(n,nr,nd,na,seed,steps,skip,d0,d1max, file=file)
     print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2), file=file)
     file.close()
