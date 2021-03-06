@@ -97,14 +97,16 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
     minds=[]
     t=0
     stop=False
+    dt1=dt/1e6
     try:
         while ts[-1]<t1 and not stop:
             if output:
                 print('%i\t%i\t%i\t\r'%(int(ts[-1]/dt), len(ts), len(minds)), end='')
-
-            sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt)
+            #set the first step according to the previous step??
+            sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
             Xts=np.concatenate((Xts,sol.y),axis=1)
             ts=np.concatenate((ts,sol.t))
+            dt1=ts[-1]-ts[-2]
 
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
@@ -414,14 +416,14 @@ if __name__ == "__main__":
         #following a bifurcation, integrate the system
         if bif>0:
             try:
-                if output:
-                    print('\nIntegrating')
                 X0=Xs[-1]
                 epsilon=epsilons[-1]+1e-1
                 ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
                 tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
-                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,100*tscale,tscale/10)
-                m0=-1
+                if output:
+                    print('\nIntegrating',tscale)
+                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,100*tscale,tscale/10,output=output)
+                m0=minds[-1]
                 if len(minds>100):
                     m0=minds[-100]
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
