@@ -8,6 +8,7 @@ from scipy.optimize import root
 from scipy.optimize import leastsq
 from scipy.integrate import solve_ivp
 from scipy.integrate import solve_bvp
+from scipy.signal import find_peaks
 from scipy.linalg import eig
 
 def get_network(n,nr,na=0):
@@ -90,14 +91,46 @@ def steady(X0, eta, nu, k, XD1, XD2):
     else:
         return False,sol.x
 
-def integrate(X0, eta, nu, k, XD1, XD2, t1, dt):
+def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
+    Xts=X0[:,np.newaxis]
+    ts=np.array([0])
+    minds=[]
+    t=0
+    stop=False
     try:
-        sol=solve_ivp(func,(0,t1),X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),max_step=dt,rtol=1e-3,atol=1e-6,jac=jac)
+        while ts[-1]<t1 and not stop:
+            if output:
+                print('%i\t%i\t%i\t\r'%(int(ts[-1]/dt), len(ts), len(minds)), end='')
+
+            sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-6,jac=jac)
+            Xts=np.concatenate((Xts,sol.y),axis=1)
+            ts=np.concatenate((ts,sol.t))
+
+            norms=np.linalg.norm(Xts,axis=0)
+            minds=find_peaks(norms)[0]
+            if len(minds)>maxcycles:
+                max=np.max(norms[minds[-maxcycles:]])
+                min=np.min(norms[minds[-maxcycles:]])
+                minds=find_peaks(norms,prominence=(max-min)/2)[0]
+                if len(minds)>=maxcycles:
+                    tscale=np.mean(np.diff(ts[minds]))
+                    # dt=np.min([tscale*maxcycles,t1-ts[-1]])
+                    max=np.max(norms[minds[-maxcycles]:])
+                    min=np.min(norms[minds[-maxcycles]:])
+
+                    sol2=leastsq(lambda x: norms[minds[-maxcycles:]]-x[0]+x[1]*ts[minds[-maxcycles:]],[np.mean(norms[minds[-maxcycles:]]),0])
+                    if output:
+                        print('\n',len(minds),dt/tscale,sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min))
+                    if np.abs(sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min)) < 0.1:
+                        print('\namplitude change negligible!')
+                        stop=True
+
     except Exception:
         raise
-    if not sol.success:
+
+    if not sol.success and output:
         print(sol.message)
-    return sol.t,sol.y,sol.success
+    return ts,Xts,sol.success
 
 def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-6, depmax=1e-2, epthrs=1e-3, stepsmax=1e6, output=True, stop=True):
     n=len(X0)
