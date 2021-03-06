@@ -106,7 +106,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
             sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt,first_step=dt1)
             Xts=np.concatenate((Xts,sol.y),axis=1)
             ts=np.concatenate((ts,sol.t))
-            dt1=ts[-1]-ts[-2]
+            dt1=(ts[-1]-ts[-2])/1e6
 
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
@@ -422,7 +422,7 @@ if __name__ == "__main__":
                 tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
                 if output:
                     print('\nIntegrating',tscale)
-                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,100*tscale,tscale/10,output=output)
+                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,tscale/10,output=output)
                 m0=minds[-1]
                 if len(minds>100):
                     m0=minds[-100]
