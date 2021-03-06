@@ -102,7 +102,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
             if output:
                 print('%i\t%i\t%i\t\r'%(int(ts[-1]/dt), len(ts), len(minds)), end='')
 
-            sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-6,jac=jac)
+            sol=solve_ivp(func,(ts[-1],ts[-1]+dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6,jac=jac,max_step=dt)
             Xts=np.concatenate((Xts,sol.y),axis=1)
             ts=np.concatenate((ts,sol.t))
 
@@ -420,13 +420,12 @@ if __name__ == "__main__":
                 epsilon=epsilons[-1]+1e-1
                 ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
                 tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
-                # ts,Xts,success=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1000*tscale,tscale/100)
-                ts,Xts,success=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,100*tscale,tscale/100)
+                ts,Xts,success=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,100*tscale,tscale/10)
                 m0=np.where(ts>10*tscale)[0][0]
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
             except Exception:
-                print('Error integrating seed %i\n'%(seed),end='')
+                print('Error integrating seed %i\n'%(seed,n,nr,nd,na),end='')
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
