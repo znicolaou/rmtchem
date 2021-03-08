@@ -97,28 +97,25 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
     minds=[]
     t=0
     stop=False
-    dt1=dt/1e6
     try:
         while ts[-1]<t1 and not stop:
             if output:
-                print('%i\t%i\t%i   \r'%(int(ts[-1]/dt), len(ts), len(minds)), end='')
-            #scaling the variables by 1/X0 should allow for larger atol
-            sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,min_step=dt/1e12,first_step=dt1)
+                print('%f\t%i\t%i   \r'%(ts[-1]/t1, len(ts), len(minds)), end='')
+            sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt)
             Xts=np.concatenate((Xts,sol.y),axis=1)
-            # sol=solve_ivp(lambda t,x,eta,nu,k,XD1,XD2: func(t,x*X0,eta,nu,k,XD1,XD2)/X0,(0,dt),Xts[:,-1]/X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-6,jac=lambda t,x,eta,nu,k,XD1,XD2: jac(t,x*X0,eta,nu,k,XD1,XD2),max_step=dt,first_step=dt1)
-            # Xts=np.concatenate((Xts,X0[:,np.newaxis]*sol.y),axis=1)
-
             ts=np.concatenate((ts,ts[-1]+sol.t))
             if not sol.success:
-                raise Exception(sol.message)
-                # if output:
-                #     print('\t\t\t\t\t\tusing BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
-                # sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-3,atol=1e-16,jac=jac,max_step=dt,first_step=dt1)
-                # if not sol.success:
-                #     raise Exception(sol.message)
-            # Xts=np.concatenate((Xts,sol.y),axis=1)
-            # dt1=ts[-1]-ts[-2]
+                if output:
+                    print('using BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
+                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt)
+                Xts=np.concatenate((Xts,sol.y),axis=1)
+                ts=np.concatenate((ts,ts[-1]+sol.t))
 
+                if not sol.success:
+                    raise Exception(sol.message)
+
+            dt=100/np.max(np.abs(func(0,Xts[:,-1],eta,nu,k,XD1, XD2)/Xts[:,-1]))
+            dt=np.min([t1-ts[-1],dt])
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
             if len(minds)>maxcycles:
@@ -437,8 +434,9 @@ if __name__ == "__main__":
                     print('\nIntegrating',tscale)
                 ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,10*tscale,tscale/100,output=output)
                 ev,evec=np.linalg.eig(jac(0,Xts[:,-1],eta,nu,k,(1+epsilon)*XD1, XD2))
-                tscale=np.min([2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))]),100/np.max(np.abs(func(0,Xts[:,-1],eta,nu,k,(1+epsilon)*XD1, XD2)/Xts[:,-1]))])
-                ts,Xts,success,minds=integrate(Xts[:,-1],eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,tscale/100,output=output)
+                tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
+                dt=100/np.max(np.abs(func(0,Xts[:,-1],eta,nu,k,(1+epsilon)*XD1, XD2)/Xts[:,-1]))
+                ts,Xts,success,minds=integrate(Xts[:,-1],eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,dt,output=output)
                 #we really should add stopping conditions for equilibria
                 m0=minds[-1]
                 if len(minds>100):
