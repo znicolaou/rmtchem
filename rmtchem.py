@@ -435,7 +435,11 @@ if __name__ == "__main__":
 
                 if output:
                     print('\nIntegrating',tscale)
-                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1000*tscale,tscale/100,output=output)
+                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,10*tscale,tscale/100,output=output)
+                ev,evec=np.linalg.eig(jac(0,Xts[:,-1],eta,nu,k,(1+epsilon)*XD1, XD2))
+                tscale=np.min([2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))]),100/np.max(np.abs(func(0,Xts[:,-1],eta,nu,k,(1+epsilon)*XD1, XD2)/Xts[:,-1]))])
+                ts,Xts,success,minds=integrate(Xts[:,-1],eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,tscale/100,output=output)
+                #we really should add stopping conditions for equilibria
                 m0=minds[-1]
                 if len(minds>100):
                     m0=minds[-100]
