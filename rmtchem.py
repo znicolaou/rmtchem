@@ -95,6 +95,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
     Xts=X0[:,np.newaxis]
     ts=np.array([0])
     minds=[]
+    m0=0
     t=0
     stop=False
     try:
@@ -116,6 +117,16 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
 
             dt=100/np.max(np.abs(func(0,Xts[:,-1],eta,nu,k,XD1, XD2)/Xts[:,-1]))
             dt=np.min([t1-ts[-1],dt])
+
+            success,solx=steady(Xts[:,-1],eta,nu,k,XD1,XD2)
+            if success:
+                ev,evec=np.linalg.eig(jac(0,solx,eta,nu,k,XD1, XD2))
+                if np.max(np.real(ev))<0:
+                    if output:
+                        print('\nFound steady state!')
+                    stop=True
+                    m0=len(ts)-1
+
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
             if len(minds)>maxcycles:
@@ -124,7 +135,6 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
                 minds=find_peaks(norms,prominence=(max-min)/2)[0]
                 if len(minds)>=maxcycles:
                     tscale=np.mean(np.diff(ts[minds]))
-                    # dt=np.min([tscale*maxcycles,t1-ts[-1]])
                     max=np.max(norms[minds[-maxcycles]:])
                     min=np.min(norms[minds[-maxcycles]:])
 
@@ -133,15 +143,16 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
                         print('\n',len(minds),dt/tscale,sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min))
                     if np.abs(sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min)) < 0.1:
                         if output:
-                            print('\namplitude change negligible!',len(minds))
+                            print('\nAmplitude change negligible!',len(minds))
                         stop=True
+                        m0=minds[-100]
 
     except Exception as e:
         raise e
 
     if not sol.success and output:
         print(sol.message)
-    return ts,Xts,sol.success,minds
+    return ts,Xts,sol.success,m0
 
 def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-2, stepsmax=1e6, output=True, stop=True):
     n=len(X0)
@@ -354,7 +365,7 @@ if __name__ == "__main__":
     parser.add_argument("--type", type=int, default=0, dest='type', help='Type of adjacency matrix. 0 for chemical networks, 1 for ER networks.')
     parser.add_argument("--d0", type=float, default=1e6, dest='d0', help='Drive timescale')
     parser.add_argument("--seed", type=int, default=1, dest='seed', help='Random seed')
-    parser.add_argument("--steps", type=int, default=5000, dest='steps', help='Steps for driving')
+    parser.add_argument("--steps", type=int, default=10000, dest='steps', help='Steps for driving')
     parser.add_argument("--na", type=int, default=0, dest='na', help='Number of autocatalytic reactions')
     parser.add_argument("--skip", type=int, default=10, dest='skip', help='Steps to skip for output')
     parser.add_argument("--output", type=int, default=0, dest='output', help='1 for matrix output, 0 for none')
@@ -428,20 +439,13 @@ if __name__ == "__main__":
                 X0=Xs[-1]
                 epsilon=epsilons[-1]+1e-1
                 ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
-                tscale=np.min([2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))]),100/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))])
+                tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
+                dt=100/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))
 
                 if output:
-                    print('\nIntegrating',tscale)
-                ts,Xts,success,minds=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,10*tscale,tscale/100,output=output)
-                ev,evec=np.linalg.eig(jac(0,Xts[:,-1],eta,nu,k,(1+epsilon)*XD1, XD2))
-                tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
-                dt=100/np.max(np.abs(func(0,Xts[:,-1],eta,nu,k,(1+epsilon)*XD1, XD2)/Xts[:,-1]))
-                ts,Xts,success,minds=integrate(Xts[:,-1],eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,dt,output=output)
-                #we really should add stopping conditions for equilibria
-                m0=minds[-1]
-                if len(minds>100):
-                    m0=minds[-100]
-                print(m0)
+                    print('\nIntegrating',epsilon,tscale,dt)
+                ts,Xts,success,m0=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,dt,output=output)
+
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
             except Exception as err:
