@@ -1,11 +1,13 @@
 #!/bin/bash
-#SBATCH -n 16
+#SBATCH -n 8
 #SBATCH -N 1
 #SBATCH -a [1-16]
 #SBATCH --time=01-00:00:00
-#SBATCH --mem=16gb
+#SBATCH --mem=120gb
 #SBATCH --output=outs/%j.out
-#SBATCH -p GTX980
+#SBATCH -p TITAN,GTX780,K20,K80,GTX670,GTX980
+###SBATCH -p GTX980
+#more memory, or decrease maxsteps??
 
 module load python/anaconda3.7
 source activate my_env
@@ -37,10 +39,13 @@ mkdir -p $ZGN_filebase0
 for sid in `seq $ZGN_num`; do
 seed=$((ZGN_num*jid+sid))
 ZGN_filebase="${ZGN_filebase0}/${seed}"
-./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --steps $ZGN_steps --skip $ZGN_skip &
+
+if [ ! -f ${ZGN_filebase}out.dat ]; then
+  ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --steps $ZGN_steps --skip $ZGN_skip 2> /dev/null &
+fi
 
 js=`jobs | wc -l`
-while [ $js -ge 16 ]; do
+while [ $js -ge 8 ]; do
   sleep 1
   js=`jobs | wc -l`
 done

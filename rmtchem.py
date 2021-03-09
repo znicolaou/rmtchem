@@ -98,25 +98,37 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     m0=0
     state=-1
     stop=False
+    t=0
+    dt0=dt/100
+    X00=X0
     try:
-        while ts[-1]<t1 and not stop:
+        while not stop:
             if output:
-                print('%.3e\t%i\t%i\r'%(ts[-1]/t1, len(ts), len(minds)), end='',flush=True)
-            sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-8,atol=1e-6*X0,jac=jac,max_step=dt)
-            Xts=np.concatenate((Xts,sol.y),axis=1)
-            ts=np.concatenate((ts,ts[-1]+sol.t))
-            if not sol.success:
+                print('%.6f\t%i\t%i\r'%(t/t1, len(ts), len(minds)), end='',flush=True)
+
+            #try to integrate to t+dt
+            sol=solve_ivp(func,(t,t+dt),X00,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-8,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0)
+            if sol.success:
+                t=t+sol.t[-1]
+                X00=sol.y[:,-1]
+                Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
+                ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
+            else:
                 if output:
                     print('\t\t\t\tusing BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
-                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt)
-                Xts=np.concatenate((Xts,sol.y),axis=1)
-                ts=np.concatenate((ts,ts[-1]+sol.t))
-
-                if not sol.success:
+                sol=solve_ivp(func,(t,t+dt),X00,method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0)
+                if sol.success:
+                    t=t+sol.t[-1]
+                    X00=sol.y[:,-1]
+                    Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
+                    ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
+                else:
                     raise Exception(sol.message)
 
-            #may be large for oscillating state if unlucky
-            dt=100/np.max(np.abs(func(0,Xts[:,-1],eta,nu,k,XD1, XD2)/Xts[:,-1]))
+            dt0=ts[-1]-ts[-2]
+            tscales=np.max(np.abs(np.diff(Xts,axis=1)/np.diff(ts)/Xts[:,1:]),axis=0)
+            tinds=np.where(ts>ts[-1]/2)[0]
+            dt=np.min([np.mean(100/tscales[tinds[:-1]]),1000*dt0])
             dt=np.min([t1-ts[-1],dt])
 
             success,solx=steady(Xts[:,-1],eta,nu,k,XD1,XD2)
@@ -132,6 +144,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
 
+            #Only check dt if the last peak occured after ts[-1]/2?
             if len(minds)>maxcycles:
                 max=np.max(norms[minds[-maxcycles:]])
                 min=np.min(norms[minds[-maxcycles:]])
@@ -148,12 +161,14 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                         stop=True
                         m0=minds[-100]
                         state=1
-                else:
-                    dt=10*np.mean(np.diff(ts[minds]))
             if len(ts)>maxsteps:
                 stop=True
                 if output:
                     print('\nFailed to find state in maxsteps!',len(ts))
+            if ts[-1]>=t1:
+                stop=True
+                if output:
+                    print('\nFailed to find state before maxtime',t1)
 
     except Exception as e:
         raise e
@@ -437,7 +452,7 @@ if __name__ == "__main__":
     wd2=0
 
 
-    if quasi and r==n: #if r<n, steady state is not unique and numerical continuation is singular
+    if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
         Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, 0, 100/steps, output=output,stop=True)
         sd1=Sdot(rates(Xs[-1],eta,nu,k))
         wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
