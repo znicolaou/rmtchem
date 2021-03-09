@@ -85,13 +85,13 @@ def hess(t,X,eta,nu,k,XD1,XD2,nu2=[]):
     return np.tensordot((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis],nu2/X[np.newaxis,np.newaxis,:]/X[np.newaxis,:,np.newaxis],axes=([0],[0]))
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-8})
+    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
     if np.min(sol.x)>0:
         return sol.success,sol.x
     else:
         return False,sol.x
 
-def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e6):
+def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e5):
     Xts=X0[:,np.newaxis]
     ts=np.array([0])
     minds=[]
@@ -102,12 +102,12 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
         while ts[-1]<t1 and not stop:
             if output:
                 print('%.3e\t%i\t%i\r'%(ts[-1]/t1, len(ts), len(minds)), end='',flush=True)
-            sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt)
+            sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-8,atol=1e-6*X0,jac=jac,max_step=dt)
             Xts=np.concatenate((Xts,sol.y),axis=1)
             ts=np.concatenate((ts,ts[-1]+sol.t))
             if not sol.success:
                 if output:
-                    print('using BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
+                    print('\t\t\t\tusing BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
                 sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt)
                 Xts=np.concatenate((Xts,sol.y),axis=1)
                 ts=np.concatenate((ts,ts[-1]+sol.t))
@@ -137,7 +137,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                 min=np.min(norms[minds[-maxcycles:]])
                 minds=find_peaks(norms,prominence=(max-min)/2)[0]
                 if len(minds)>=maxcycles:
-                    dt=100*np.mean(np.diff(ts[minds[-maxcycles:]]))
+                    dt=10*np.mean(np.diff(ts[minds[-maxcycles:]]))
                     max=np.max(norms[minds[-maxcycles]:])
                     min=np.min(norms[minds[-maxcycles]:])
 
@@ -148,6 +148,9 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                         stop=True
                         m0=minds[-100]
                         state=1
+                else:
+                    print('\ntest',len(minds))
+                    dt=10*np.mean(np.diff(ts[minds]))
             if len(ts)>maxsteps:
                 stop=True
                 if output:
@@ -451,7 +454,7 @@ if __name__ == "__main__":
 
                 if output:
                     print('\nIntegrating',epsilon,tscale,dt)
-                ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,dt,output=output)
+                ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1e4*tscale,dt,output=output)
 
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
