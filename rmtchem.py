@@ -101,7 +101,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     try:
         while ts[-1]<t1 and not stop:
             if output:
-                print('%f\t%i\t%i   \r'%(ts[-1]/t1, len(ts), len(minds)), end='')
+                print('%.3e\t%i\t%i\r'%(ts[-1]/t1, len(ts), len(minds)), end='',flush=True)
             sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt)
             Xts=np.concatenate((Xts,sol.y),axis=1)
             ts=np.concatenate((ts,ts[-1]+sol.t))
@@ -115,6 +115,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                 if not sol.success:
                     raise Exception(sol.message)
 
+            #may be large for oscillating state if unlucky
             dt=100/np.max(np.abs(func(0,Xts[:,-1],eta,nu,k,XD1, XD2)/Xts[:,-1]))
             dt=np.min([t1-ts[-1],dt])
 
@@ -130,21 +131,20 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
 
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
+
             if len(minds)>maxcycles:
                 max=np.max(norms[minds[-maxcycles:]])
                 min=np.min(norms[minds[-maxcycles:]])
                 minds=find_peaks(norms,prominence=(max-min)/2)[0]
                 if len(minds)>=maxcycles:
-                    tscale=np.mean(np.diff(ts[minds]))
+                    dt=100*np.mean(np.diff(ts[minds[-maxcycles:]]))
                     max=np.max(norms[minds[-maxcycles]:])
                     min=np.min(norms[minds[-maxcycles]:])
 
                     sol2=leastsq(lambda x: norms[minds[-maxcycles:]]-x[0]+x[1]*ts[minds[-maxcycles:]],[np.mean(norms[minds[-maxcycles:]]),0])
-                    if output:
-                        print('\n',len(minds),dt/tscale,sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min))
                     if np.abs(sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min)) < 0.1:
                         if output:
-                            print('\nAmplitude change negligible!',len(minds))
+                            print('\nFound oscillating state!')
                         stop=True
                         m0=minds[-100]
                         state=1
@@ -446,7 +446,7 @@ if __name__ == "__main__":
                 X0=Xs[-1]
                 epsilon=epsilons[-1]+1e-1
                 ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
-                tscale=2*np.pi/np.abs(ev[np.argmin(np.abs(np.real(ev)))])
+                tscale=2*np.pi/np.abs(np.real(ev[np.argmin(np.abs(np.real(ev)))]))
                 dt=100/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))
 
                 if output:
