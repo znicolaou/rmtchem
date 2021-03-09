@@ -104,7 +104,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     try:
         while not stop:
             if output:
-                print('%.6f\t%i\t%i\r'%(t/t1, len(ts), len(minds)), end='',flush=True)
+                print('%.6f\t%i\t%i\r'%(ts[-1]/t1, len(ts), len(minds)), end='',flush=True)
 
             #try to integrate to t+dt
             try:
