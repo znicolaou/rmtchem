@@ -91,7 +91,7 @@ def steady(X0, eta, nu, k, XD1, XD2):
     else:
         return False,sol.x
 
-def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e5):
+def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e6):
     Xts=X0[:,np.newaxis]
     ts=np.array([0])
     minds=[]
@@ -149,7 +149,6 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                         m0=minds[-100]
                         state=1
                 else:
-                    print('\ntest',len(minds))
                     dt=10*np.mean(np.diff(ts[minds]))
             if len(ts)>maxsteps:
                 stop=True
