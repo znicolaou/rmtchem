@@ -98,9 +98,9 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     m0=0
     state=-1
     stop=False
-    t=0
+    # t=0
     dt0=dt/100
-    X00=X0
+    # X00=X0
     try:
         while not stop:
             if output:
@@ -108,10 +108,10 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
 
             #try to integrate to t+dt
             try:
-                sol=solve_ivp(func,(t,t+dt),X0,method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-8,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0)
+                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt/100,first_step=dt0)
                 if sol.success:
-                    t=t+sol.t[-1]
-                    X0=sol.y[:,-1]
+                    # t=t+sol.t[-1]
+                    # X0=sol.y[:,-1]
                     Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
                     ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
                 else:
@@ -120,13 +120,14 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
             except Exception as e:
                 if output:
                     print('\t\t\t\tusing BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
-                sol=solve_ivp(func,(t,t+dt),X0,method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0)
+                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt/100,first_step=dt0)
                 if sol.success:
-                    t=t+sol.t[-1]
-                    X0=sol.y[:,-1]
+                    # t=t+sol.t[-1]
+                    # X0=sol.y[:,-1]
                     Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
                     ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
                 else:
+                    print(ts[-1])
                     raise Exception(sol.message)
 
             dt0=ts[-1]-ts[-2]
