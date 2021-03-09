@@ -91,12 +91,12 @@ def steady(X0, eta, nu, k, XD1, XD2):
     else:
         return False,sol.x
 
-def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
+def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e6):
     Xts=X0[:,np.newaxis]
     ts=np.array([0])
     minds=[]
     m0=0
-    t=0
+    state=-1
     stop=False
     try:
         while ts[-1]<t1 and not stop:
@@ -119,13 +119,14 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
             dt=np.min([t1-ts[-1],dt])
 
             success,solx=steady(Xts[:,-1],eta,nu,k,XD1,XD2)
-            if success:
+            if success and np.linalg.norm((solx-Xts[:,-1])/solx)<1e-2:
                 ev,evec=np.linalg.eig(jac(0,solx,eta,nu,k,XD1, XD2))
                 if np.max(np.real(ev))<0:
                     if output:
                         print('\nFound steady state!')
                     stop=True
                     m0=len(ts)-1
+                    state=0
 
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
@@ -146,13 +147,18 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False):
                             print('\nAmplitude change negligible!',len(minds))
                         stop=True
                         m0=minds[-100]
+                        state=1
+            if len(ts)>maxsteps:
+                stop=True
+                if output:
+                    print('\nFailed to find state in maxsteps!',len(ts))
 
     except Exception as e:
         raise e
 
     if not sol.success and output:
         print(sol.message)
-    return ts,Xts,sol.success,m0
+    return ts,Xts,sol.success,m0,state
 
 def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-2, stepsmax=1e6, output=True, stop=True):
     n=len(X0)
@@ -419,6 +425,7 @@ if __name__ == "__main__":
     XD1,XD2,inds=get_drive(eta,nu,k,G,d0,nd)
 
     bif=-3
+    state=-1
     Xs=np.array([])
     evals=np.array([])
     epsilon=0
@@ -444,7 +451,7 @@ if __name__ == "__main__":
 
                 if output:
                     print('\nIntegrating',epsilon,tscale,dt)
-                ts,Xts,success,m0=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,dt,output=output)
+                ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,200*tscale,dt,output=output)
 
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
@@ -456,11 +463,11 @@ if __name__ == "__main__":
     file=open(filebase+'out.dat','w')
     epsilon=epsilons[-1]
     print(n,nr,nd,na,seed,steps,skip,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, state), file=file)
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2), flush=True)
+        print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, state), flush=True)
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'epsilons.npy',epsilons[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
