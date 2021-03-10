@@ -87,7 +87,7 @@ def hess(t,X,eta,nu,k,XD1,XD2,nu2=[]):
 
 def steady(X0, eta, nu, k, XD1, XD2):
     sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
-    # sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-8})
+    # sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
     if np.min(sol.x)>0:
         # print(sol.message)
         return sol.success,sol.x
@@ -103,7 +103,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     state=-1
     stop=False
     dt0=dt/100
-    dtmax=dt*1e3
+    dtmax=dt*1e6
     try:
         while not stop:
 
@@ -197,6 +197,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
     dep=dep0
     steps=0
     scount=0
+    depmax=np.min([dep0,depmax])
 
     while ((ep<=ep1 and ep>=ep0)) and steps<stepsmax:
         steps=steps+1
