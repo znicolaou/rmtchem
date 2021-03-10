@@ -103,7 +103,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     state=-1
     stop=False
     dt0=dt/100
-    # dtmax=dt*1e6
+    # dtmax=dt*10
     try:
         while not stop:
 
@@ -121,7 +121,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
             except Exception as e:
                 if output:
                     print('%.6f\t%.6f\t%i\t%i\tirk  \t%s\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds),sol.message), end='',flush=True)
-                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='Radau',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0)
+                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='Radau',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt/10,first_step=dt0)
                 # sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0,min_step=dt0/1000)
                 if sol.success and (sol.t[-1])>(sol.t[-2]):
                     dts=np.concatenate((dts,np.diff(sol.t)))
@@ -138,6 +138,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
             tinds=np.where(ts>ts[-1]/2)[0]
             # print(len(tinds))
             dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,ts[-1]/2])
+            # dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,ts[-1]/2,dtmax])
             dt=np.min([t1-ts[-1],dt])
             dt0=np.min([dt,dts[-2]])
 

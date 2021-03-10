@@ -40,7 +40,7 @@ seed=$((ZGN_num*jid+sid))
 ZGN_filebase="${ZGN_filebase0}/${seed}"
 
 if [ ! -f ${ZGN_filebase}out.dat ]; then
-  ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip 2> /dev/null &
+  timeout 3600 ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip 2> /dev/null &
 fi
 
 js=`jobs | wc -l`
