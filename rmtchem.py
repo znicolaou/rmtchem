@@ -102,7 +102,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     state=-1
     stop=False
     dt0=dt/100
-    dtmax=dt*1000
+    # dtmax=dt*1e5
     try:
         while not stop:
 
@@ -134,7 +134,8 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
             dt0=dts[-2]
             tscales=np.max(np.abs(np.diff(Xts,axis=1)/dts/Xts[:,1:]),axis=0)
             tinds=np.where(ts>ts[-1]/2)[0]
-            dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,dtmax])
+            # dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,dtmax])
+            dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0])
             dt=np.min([t1-ts[-1],dt])
 
             #check for steady state
@@ -394,7 +395,7 @@ if __name__ == "__main__":
     parser.add_argument("--type", type=int, default=0, dest='type', help='Type of adjacency matrix. 0 for chemical networks, 1 for ER networks.')
     parser.add_argument("--d0", type=float, default=1e6, dest='d0', help='Drive timescale')
     parser.add_argument("--seed", type=int, default=1, dest='seed', help='Random seed')
-    parser.add_argument("--steps", type=int, default=10000, dest='steps', help='Steps for driving')
+    parser.add_argument("--dep", type=int, default=1e-2, dest='dep', help='Step size for driving')
     parser.add_argument("--na", type=int, default=0, dest='na', help='Number of autocatalytic reactions')
     parser.add_argument("--skip", type=int, default=10, dest='skip', help='Steps to skip for output')
     parser.add_argument("--output", type=int, default=0, dest='output', help='1 for matrix output, 0 for none')
@@ -410,7 +411,7 @@ if __name__ == "__main__":
     quasi=args.quasi
     rank=args.rank
     seed=args.seed
-    steps=args.steps
+    dep=args.dep
     skip=args.skip
     d0=args.d0
     d1min=1
@@ -459,7 +460,7 @@ if __name__ == "__main__":
 
 
     if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
-        Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, 100, 0, 100/steps, output=output,stop=True)
+        Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, d1max, 0, dep, output=output,stop=True)
         sd1=Sdot(rates(Xs[-1],eta,nu,k))
         wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
 
@@ -485,7 +486,7 @@ if __name__ == "__main__":
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
     epsilon=epsilons[-1]
-    print(n,nr,nd,na,seed,steps,skip,d0,d1max, file=file)
+    print(n,nr,nd,na,seed,d0,d1max, file=file)
     print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, state), file=file)
     file.close()
 

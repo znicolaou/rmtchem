@@ -15,7 +15,6 @@ export OMP_NUM_THREADS=1
 
 ZGN_num=64
 ZGN_skip=10
-ZGN_steps=10000
 ZGN_ns="64"
 ZGN_cs="0.5 1.0 2.0"
 ZGN_ds="0.05 0.1 0.2"
@@ -41,7 +40,7 @@ seed=$((ZGN_num*jid+sid))
 ZGN_filebase="${ZGN_filebase0}/${seed}"
 
 if [ ! -f ${ZGN_filebase}out.dat ]; then
-  ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --steps $ZGN_steps --skip $ZGN_skip 2> /dev/null &
+  ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip 2> /dev/null &
 fi
 
 js=`jobs | wc -l`
