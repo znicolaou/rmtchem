@@ -53,6 +53,7 @@ def get_drive(eta,nu,k,G,d0,nd):
 
 def rates(X,eta,nu,k):
     return k*np.product(X**nu,axis=1)
+    # return [k]*np.product(np.power(X,[nu]),axis=2)
 
 def Sdot(rates):
     Jp=rates[::2]
@@ -85,57 +86,58 @@ def hess(t,X,eta,nu,k,XD1,XD2,nu2=[]):
     return np.tensordot((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis],nu2/X[np.newaxis,np.newaxis,:]/X[np.newaxis,:,np.newaxis],axes=([0],[0]))
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
+    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
     if np.min(sol.x)>0:
+        # print(sol.message)
         return sol.success,sol.x
     else:
         return False,sol.x
 
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e6):
     Xts=X0[:,np.newaxis]
-    ts=np.array([0])
+    ts=np.array([0.])
+    dts=np.array([])
     minds=[]
     m0=0
     state=-1
     stop=False
-    # t=0
     dt0=dt/100
-    # X00=X0
+    dtmax=dt*1000
     try:
         while not stop:
-            if output:
-                print('%.6f\t%i\t%i\r'%(ts[-1]/t1, len(ts), len(minds)), end='',flush=True)
 
             #try to integrate to t+dt
             try:
-                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt/100,first_step=dt0)
-                if sol.success:
-                    # t=t+sol.t[-1]
-                    # X0=sol.y[:,-1]
+                if output:
+                    print('%.6f\t%.6f\t%i\t%i\tlsoda\t\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds)), end='',flush=True)
+                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0/100)
+                if sol.success and (sol.t[-1])>(sol.t[-2]):
+                    dts=np.concatenate((dts,np.diff(sol.t)))
                     Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
                     ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
                 else:
                     raise Exception(sol.message)
-
             except Exception as e:
                 if output:
-                    print('\t\t\t\tusing BDF at t/t1=%f\t\r'%(ts[-1]/t1),end='')
-                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt/100,first_step=dt0)
-                if sol.success:
-                    # t=t+sol.t[-1]
-                    # X0=sol.y[:,-1]
+                    print('%.6f\t%.6f\t%i\t%i\tikr  \t%s\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds),sol.message), end='',flush=True)
+                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='Radau',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0)
+                # sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0,min_step=dt0/1000)
+                if sol.success and (sol.t[-1])>(sol.t[-2]):
+                    dts=np.concatenate((dts,np.diff(sol.t)))
                     Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
                     ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
                 else:
-                    print(ts[-1])
                     raise Exception(sol.message)
 
-            dt0=ts[-1]-ts[-2]
-            tscales=np.max(np.abs(np.diff(Xts,axis=1)/np.diff(ts)/Xts[:,1:]),axis=0)
+            #update timesteps
+            # dt0=np.mean(dts[-10:])
+            dt0=dts[-2]
+            tscales=np.max(np.abs(np.diff(Xts,axis=1)/dts/Xts[:,1:]),axis=0)
             tinds=np.where(ts>ts[-1]/2)[0]
-            dt=np.min([np.mean(100/tscales[tinds[:-1]]),1000*dt0])
+            dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,dtmax])
             dt=np.min([t1-ts[-1],dt])
 
+            #check for steady state
             success,solx=steady(Xts[:,-1],eta,nu,k,XD1,XD2)
             if success and np.linalg.norm((solx-Xts[:,-1])/solx)<1e-2:
                 ev,evec=np.linalg.eig(jac(0,solx,eta,nu,k,XD1, XD2))
@@ -146,10 +148,9 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                     m0=len(ts)-1
                     state=0
 
+            #check for oscillating state
             norms=np.linalg.norm(Xts,axis=0)
             minds=find_peaks(norms)[0]
-
-            #Only check dt if the last peak occured after ts[-1]/2?
             if len(minds)>maxcycles:
                 max=np.max(norms[minds[-maxcycles:]])
                 min=np.min(norms[minds[-maxcycles:]])
@@ -166,6 +167,8 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                         stop=True
                         m0=minds[-100]
                         state=1
+
+            #check for stopping
             if len(ts)>maxsteps:
                 stop=True
                 if output:
@@ -178,8 +181,6 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     except Exception as e:
         raise e
 
-    if not sol.success and output:
-        print(sol.message)
     return ts,Xts,sol.success,m0,state
 
 def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-2, stepsmax=1e6, output=True, stop=True):
