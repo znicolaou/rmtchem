@@ -103,7 +103,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     state=-1
     stop=False
     dt0=dt/100
-    # dtmax=dt*1e5
+    dtmax=dt*1e3
     try:
         while not stop:
 
@@ -135,8 +135,8 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
             dt0=dts[-2]
             tscales=np.max(np.abs(np.diff(Xts,axis=1)/dts/Xts[:,1:]),axis=0)
             tinds=np.where(ts>ts[-1]/2)[0]
-            # dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,dtmax])
-            dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0])
+            dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,dtmax])
+            # dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0])
             dt=np.min([t1-ts[-1],dt])
 
             #check for steady state
