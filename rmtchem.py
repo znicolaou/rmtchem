@@ -188,7 +188,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
 
     return ts,Xts,sol.success,m0,state
 
-def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-2, stepsmax=1e5, output=True, stop=True):
+def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-3, stepsmax=1e5, output=True, stop=True):
     n=len(X0)
     eps=[]
     sols=[]
@@ -499,7 +499,7 @@ if __name__ == "__main__":
     file.close()
 
     if output:
-        print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, state), flush=True)
+        print('\n%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, state))
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'epsilons.npy',epsilons[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
