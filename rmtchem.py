@@ -94,7 +94,7 @@ def steady(X0, eta, nu, k, XD1, XD2):
     else:
         return False,sol.x
 
-def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e5):
+def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e6):
     Xts=X0[:,np.newaxis]
     ts=np.array([0.])
     dts=np.array([])
@@ -120,7 +120,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                     raise Exception(sol.message)
             except Exception as e:
                 if output:
-                    print('%.6f\t%.6f\t%i\t%i\tikr  \t%s\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds),sol.message), end='',flush=True)
+                    print('%.6f\t%.6f\t%i\t%i\tirk  \t%s\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds),sol.message), end='',flush=True)
                 sol=solve_ivp(func,(0,dt),Xts[:,-1],method='Radau',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0)
                 # sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0,min_step=dt0/1000)
                 if sol.success and (sol.t[-1])>(sol.t[-2]):
@@ -132,13 +132,14 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
 
             #update timesteps
             # dt0=np.mean(dts[-10:])
-            dt0=dts[-2]
+
             # print(dt0)
             tscales=np.max(np.abs(np.diff(Xts,axis=1)/dts/Xts[:,1:]),axis=0)
             tinds=np.where(ts>ts[-1]/2)[0]
             # print(len(tinds))
             dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,ts[-1]/2])
             dt=np.min([t1-ts[-1],dt])
+            dt0=np.min([dt,dts[-2]])
 
 
             #check for steady state
