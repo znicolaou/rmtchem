@@ -408,6 +408,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip", type=int, default=10, dest='skip', help='Steps to skip for output')
     parser.add_argument("--output", type=int, default=0, dest='output', help='1 for matrix output, 0 for none')
     parser.add_argument("--quasistatic", type=int, default=1, dest='quasi', help='1 for quasistatic')
+    parser.add_argument("--integrate", type=int, default=1, dest='integ', help='1 for integrate')
     parser.add_argument("--rank", type=int, default=1, dest='rank', help='1 for rank calculation')
     args = parser.parse_args()
     n=args.n
@@ -417,6 +418,7 @@ if __name__ == "__main__":
     filebase=args.filebase
     output=args.output
     quasi=args.quasi
+    integ=args.integ
     rank=args.rank
     seed=args.seed
     dep=args.dep
@@ -466,14 +468,13 @@ if __name__ == "__main__":
     wd1=0
     wd2=0
 
-
     if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
         Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, d1max, 0, dep, output=output,stop=True)
         sd1=Sdot(rates(Xs[-1],eta,nu,k))
         wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
 
         #following a bifurcation, integrate the system
-        if bif>0:
+        if bif>0 and integ:
             try:
                 X0=Xs[-1]
                 epsilon=epsilons[-1]+1e-1
