@@ -216,6 +216,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
             #Check if Hopf (complex eigenvalue with smallest real part changes sign)
             if len(evals)>1 and ((np.count_nonzero(np.real(evals[-1])>0)==0 and np.count_nonzero(np.real(eval)>0)>0) or (np.count_nonzero(np.real(evals[-1])>0)>0 and np.count_nonzero(np.real(eval)>0)==0)):
 
+                #we could do this after checking for bifurcations and add the exact location
                 sols.append(solx)
                 eps.append(ep)
                 evals.append(eval)
@@ -230,6 +231,9 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                     eph=hsol.x
                     X0h=steady(X0,eta,nu,k,(1+eph)*XD1,XD2)[1]
                     ev,lvec,rvec=eig(jac(0,X0h,eta,nu,k,(1+eph)*XD1, XD2),left=True,right=True)
+                    sols[-1]=X0h
+                    eps[-1]=eph
+                    evals[-1]=ev
                     ind=np.argmax(np.real(ev))
                     omega=np.imag(ev[ind])
                     q=rvec[:,ind]
@@ -268,6 +272,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                     sol2=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xm,(xm-x0)/y0**2])
                     xn2=sol2[0][0]-ep
 
+                    #Can we instead search for the solution with root?
                     #Saddle-node detected! Look for the second branch
                     if xn2<epthrs and xn2/dep>0:
                         ind=np.argmin(np.abs(eval))
@@ -482,6 +487,7 @@ if __name__ == "__main__":
     sd2=0
     wd1=0
     wd2=0
+    dn=0
 
     if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
         Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, d1max, 0, dep, output=output,stop=True)
@@ -503,6 +509,7 @@ if __name__ == "__main__":
                 print(m0)
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+                dn=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm(Xts[:,i]-X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
             except Exception as err:
                 print('Error integrating seed %i\t%i\t%i\t%i\t%i\n'%(seed,n,nr,nd,na),end='')
                 print(str(err))
@@ -511,11 +518,11 @@ if __name__ == "__main__":
     file=open(filebase+'out.dat','w')
     epsilon=epsilons[-1]
     print(n,nr,nd,na,seed,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, state), file=file)
+    print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, dn, state), file=file)
     file.close()
 
     if output:
-        print('\n%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, state))
+        print('\n%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, dn, state))
         np.save(filebase+'Xs.npy',Xs[::skip])
         np.save(filebase+'epsilons.npy',epsilons[::skip])
         np.save(filebase+'evals.npy',evals[::skip])
