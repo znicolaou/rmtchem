@@ -224,14 +224,12 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                 ep=ep+dep
 
                 if np.count_nonzero(np.real(evals[-2])>0)==0 or np.count_nonzero(np.real(evals[-1])>0)==0:
-                    if output>1:
-                        print('\nHopf bifurcation!\t\t%f\n'%(ep),end='')
                     bif=1
                     #locate the bifurcation point and find the lyapunov coefficient
                     hsol=root(lambda x:np.max(np.real(eig(jac(0,steady(X0,eta,nu,k,(1+x)*XD1,XD2)[1],eta,nu,k,(1+x)*XD1,XD2))[0])),x0=ep)
-                    ep=hsol.x
-                    X0=steady(X0,eta,nu,k,(1+ep)*XD1,XD2)[1]
-                    ev,lvec,rvec=eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2),left=True,right=True)
+                    eph=hsol.x
+                    X0h=steady(X0,eta,nu,k,(1+eph)*XD1,XD2)[1]
+                    ev,lvec,rvec=eig(jac(0,X0h,eta,nu,k,(1+eph)*XD1, XD2),left=True,right=True)
                     ind=np.argmax(np.real(ev))
                     omega=np.imag(ev[ind])
                     q=rvec[:,ind]
@@ -240,11 +238,15 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                         omega=-omega
                         q=q.conjugate()
                         p=p.conjugate()
-                    l=lcoeff(0,X0,eta,nu,k,(1+epsilon)*XD1,XD2,q,p,omega)
+                    l=lcoeff(0,X0h,eta,nu,k,(1+eph)*XD1,XD2,q,p,omega)
                     if l<0:
                         bif=1
+                        if output>1:
+                            print('\nSupercritical Hopf bifurcation!\t\t%f\n'%(ep),end='')
                     else:
                         bif=3
+                        if output>1:
+                            print('\nSubcritical Hopf bifurcation!\t\t%f\n'%(ep),end='')
 
                     if stop:
                         break
@@ -498,7 +500,7 @@ if __name__ == "__main__":
                 if output:
                     print('\nIntegrating',epsilon,tscale,dt)
                 ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1e4*tscale,dt,output=output)
-
+                print(m0)
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
             except Exception as err:
