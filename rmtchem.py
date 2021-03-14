@@ -150,6 +150,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                     if np.max(np.real(ev))<0:
                         if output:
                             print('\nFound steady state!')
+                        Xts[:,-1]=solx
                         m0=len(ts)-1
                         state=0
                         stop=True
@@ -224,11 +225,11 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                 X0=sols[-1]+dX
                 ep=ep+dep
 
-                if np.count_nonzero(np.real(evals[-2])>0)==0 or np.count_nonzero(np.real(evals[-1])>0)==0:
+                if (np.count_nonzero(np.real(evals[-2])>0)==0 or np.count_nonzero(np.real(evals[-1])>0)==0):
                     bif=1
                     #locate the bifurcation point and find the lyapunov coefficient
                     hsol=root(lambda x:np.max(np.real(eig(jac(0,steady(X0,eta,nu,k,(1+x)*XD1,XD2)[1],eta,nu,k,(1+x)*XD1,XD2))[0])),x0=ep)
-                    eph=hsol.x
+                    eph=hsol.x[0]
                     X0h=steady(X0,eta,nu,k,(1+eph)*XD1,XD2)[1]
                     ev,lvec,rvec=eig(jac(0,X0h,eta,nu,k,(1+eph)*XD1, XD2),left=True,right=True)
                     sols[-1]=X0h
@@ -507,7 +508,7 @@ if __name__ == "__main__":
                 if output:
                     print('\nIntegrating',epsilon,tscale,dt)
                 ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1e4*tscale,dt,output=output)
-                print(m0)
+                print(m0,len(ts))
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 dn1=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm(Xts[:,i]-X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
