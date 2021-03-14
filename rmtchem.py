@@ -10,6 +10,7 @@ from scipy.integrate import solve_ivp
 from scipy.integrate import solve_bvp
 from scipy.signal import find_peaks
 from scipy.linalg import eig
+from scipy.special import seterr
 
 def get_network(n,nr,na=0):
     eta=np.zeros((2*nr,n))
@@ -53,7 +54,6 @@ def get_drive(eta,nu,k,G,d0,nd):
 
 def rates(X,eta,nu,k):
     return k*np.product(X**nu,axis=1)
-    # return [k]*np.product(np.power(X,[nu]),axis=2)
 
 def Sdot(rates):
     Jp=rates[::2]
@@ -69,32 +69,28 @@ def func(t, X, eta, nu, k, XD1, XD2):
 def jac(t,X,eta,nu,k,XD1,XD2):
     return -np.diag(XD2)+np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]).dot(nu/X)
 
-def getNu2(nu):
-    m,n=nu.shape
-    nu2=np.zeros((m,n,n))
-    for l in range(m):
-        for i in range(n):
-            nu2[l,i,i]=nu[l,i]*(nu[l,i]-1)
-            for j in range(i):
-                nu2[l,i,j]=nu[l,i]*nu[l,j]
-                nu2[l,j,i]=nu[l,i]*nu[l,j]
-    return nu2
+def hess(t,X,eta,nu,k,XD1,XD2):
+    return np.tensordot(eta-nu,rates(X,eta,nu,k)[:,np.newaxis,np.newaxis]/(X[np.newaxis,:,np.newaxis]*X[np.newaxis,np.newaxis,:])*(nu[:,:,np.newaxis]*nu[:,np.newaxis,:]-nu[:,:,np.newaxis]*np.identity(len(X))[np.newaxis,:,:]), axes=(0,0))
 
-def hess(t,X,eta,nu,k,XD1,XD2,nu2=[]):
-    if len(nu2)==0:
-        nu2=getNu2(nu)
-    return np.tensordot((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis],nu2/X[np.newaxis,np.newaxis,:]/X[np.newaxis,:,np.newaxis],axes=([0],[0]))
+def third(t,X,eta,nu,k,XD1,XD2):
+    return np.tensordot(eta-nu,rates(X,eta,nu,k)[:,np.newaxis,np.newaxis,np.newaxis]/(X[np.newaxis,:,np.newaxis,np.newaxis]*X[np.newaxis,np.newaxis,:,np.newaxis]*X[np.newaxis,np.newaxis,np.newaxis,:])*(nu[:,:,np.newaxis,np.newaxis]*nu[:,np.newaxis,:,np.newaxis]*nu[:,np.newaxis,np.newaxis,:]-nu[:,:,np.newaxis,np.newaxis]*nu[:,np.newaxis,:,np.newaxis]*(np.identity(len(X))[np.newaxis,np.newaxis,:,:]+np.identity(len(X))[np.newaxis,:,np.newaxis,:]+np.identity(len(X))[np.newaxis,:,:,np.newaxis])+2*nu[:,:,np.newaxis,np.newaxis]*np.identity(len(X))[np.newaxis,:,:,np.newaxis]*np.identity(len(X))[np.newaxis,np.newaxis,:,:]), axes=(0,0))
+
+def lcoeff(t,X,eta,nu,k,XD1,XD2,q,p,omega):
+    A=jac(t,X,eta,nu,k,XD1,XD2)
+    B=hess(t,X,eta,nu,k,XD1,XD2)
+    C=third(t,X,eta,nu,k,XD1,XD2)
+    v=np.linalg.solve(A,B@q@q.conjugate())
+    w=np.linalg.solve(2*1j*omega*np.identity(len(X))-A,B@q@q)
+    return 1/(2*omega)*np.real(np.vdot(p,C@q@q@q.conjugate()-2*B@q@v+B@q.conjugate()@w))
 
 def steady(X0, eta, nu, k, XD1, XD2):
     sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
-    # sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
     if np.min(sol.x)>0:
-        # print(sol.message)
         return sol.success,sol.x
     else:
         return False,sol.x
 
-def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e6):
+def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e6,cont=False):
     Xts=X0[:,np.newaxis]
     ts=np.array([0.])
     dts=np.array([])
@@ -103,16 +99,16 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     state=-1
     stop=False
     dt0=dt/100
-    # dtmax=dt*10
+    dtmax=dt*1e6
+    success=False
     try:
-        while not stop:
+        while not stop or cont:
 
-            #try to integrate to t+dt
             try:
                 if output:
                     print('%.6f\t%.6f\t%i\t%i\tlsoda\t\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds)), end='',flush=True)
                 sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0/100)
-                if sol.success and (sol.t[-1])>(sol.t[-2]):
+                if sol.success:
                     dts=np.concatenate((dts,np.diff(sol.t)))
                     Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
                     ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
@@ -122,8 +118,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                 if output:
                     print('%.6f\t%.6f\t%i\t%i\tirk  \t%s\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds),sol.message), end='',flush=True)
                 sol=solve_ivp(func,(0,dt),Xts[:,-1],method='Radau',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt/10,first_step=dt0)
-                # sol=solve_ivp(func,(0,dt),Xts[:,-1],method='BDF',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0,min_step=dt0/1000)
-                if sol.success and (sol.t[-1])>(sol.t[-2]):
+                if sol.success:
                     dts=np.concatenate((dts,np.diff(sol.t)))
                     Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
                     ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
@@ -131,63 +126,60 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                     raise Exception(sol.message)
 
             #update timesteps
-            # dt0=np.mean(dts[-10:])
-
-            # print(dt0)
             tscales=np.max(np.abs(np.diff(Xts,axis=1)/dts/Xts[:,1:]),axis=0)
             tinds=np.where(ts>ts[-1]/2)[0]
-            # print(len(tinds))
-            dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,ts[-1]/2])
-            # dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,ts[-1]/2,dtmax])
+            dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,ts[-1]/2,dtmax])
             dt=np.min([t1-ts[-1],dt])
             dt0=np.min([dt,dts[-2]])
 
-
-            #check for steady state
-            success,solx=steady(Xts[:,-1],eta,nu,k,XD1,XD2)
-            if success and np.linalg.norm((solx-Xts[:,-1])/solx)<1e-2:
-                ev,evec=np.linalg.eig(jac(0,solx,eta,nu,k,XD1, XD2))
-                if np.max(np.real(ev))<0:
-                    if output:
-                        print('\nFound steady state!')
-                    stop=True
-                    m0=len(ts)-1
-                    state=0
-
-            #check for oscillating state
-            norms=np.linalg.norm(Xts,axis=0)
-            minds=find_peaks(norms)[0]
-            if len(minds)>maxcycles:
-                max=np.max(norms[minds[-maxcycles:]])
-                min=np.min(norms[minds[-maxcycles:]])
-                minds=find_peaks(norms,prominence=(max-min)/2)[0]
-                if len(minds)>=maxcycles:
-                    dt=10*np.mean(np.diff(ts[minds[-maxcycles:]]))
-                    max=np.max(norms[minds[-maxcycles]:])
-                    min=np.min(norms[minds[-maxcycles]:])
-
-                    sol2=leastsq(lambda x: norms[minds[-maxcycles:]]-x[0]+x[1]*ts[minds[-maxcycles:]],[np.mean(norms[minds[-maxcycles:]]),0])
-                    if np.abs(sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min)) < 0.1:
-                        if output:
-                            print('\nFound oscillating state!')
-                        stop=True
-                        m0=minds[-100]
-                        state=1
-
             #check for stopping
             if len(ts)>maxsteps:
-                stop=True
                 if output:
                     print('\nFailed to find state in maxsteps!',len(ts))
+                break
             if ts[-1]>=t1:
-                stop=True
                 if output:
                     print('\nFailed to find state before maxtime',t1)
+                break
+
+            if not stop:
+                #check for steady state
+                success,solx=steady(Xts[:,-1],eta,nu,k,XD1,XD2)
+                if success and np.linalg.norm((solx-Xts[:,-1])/solx)<1e-2:
+                    ev,evec=np.linalg.eig(jac(0,solx,eta,nu,k,XD1, XD2))
+                    if np.max(np.real(ev))<0:
+                        if output:
+                            print('\nFound steady state!')
+                        m0=len(ts)-1
+                        state=0
+                        stop=True
+                        success=True
+
+                #check for oscillating state
+                norms=np.linalg.norm(Xts,axis=0)
+                minds=find_peaks(norms)[0]
+                if len(minds)>maxcycles:
+                    max=np.max(norms[minds[-maxcycles:]])
+                    min=np.min(norms[minds[-maxcycles:]])
+                    minds=find_peaks(norms,prominence=(max-min)/2)[0]
+                    if len(minds)>=maxcycles:
+                        dt=10*np.mean(np.diff(ts[minds[-maxcycles:]]))
+                        max=np.max(norms[minds[-maxcycles]:])
+                        min=np.min(norms[minds[-maxcycles]:])
+
+                        sol2=leastsq(lambda x: norms[minds[-maxcycles:]]-x[0]+x[1]*ts[minds[-maxcycles:]],[np.mean(norms[minds[-maxcycles:]]),0])
+                        if np.abs(sol2[0][1]*(ts[-1]-ts[minds[-maxcycles]])/(max-min)) < 0.1:
+                            if output:
+                                print('\nFound oscillating state!')
+                            m0=minds[-maxcycles]
+                            state=1
+                            stop=True
+                            success=True
 
     except Exception as e:
         raise e
 
-    return ts,Xts,sol.success,m0,state
+    return ts,Xts,success,m0,state
 
 def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-3, stepsmax=1e5, output=True, stop=True):
     n=len(X0)
@@ -201,7 +193,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
     dep=dep0
     steps=0
     scount=0
-    depmax=np.min([dep0,depmax])
+    depmax=np.min([np.abs(dep0),depmax])
 
     while ((ep<=ep1 and ep>=ep0)) and steps<stepsmax:
         steps=steps+1
@@ -232,10 +224,28 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                 ep=ep+dep
 
                 if np.count_nonzero(np.real(evals[-2])>0)==0 or np.count_nonzero(np.real(evals[-1])>0)==0:
-
                     if output>1:
                         print('\nHopf bifurcation!\t\t%f\n'%(ep),end='')
                     bif=1
+                    #locate the bifurcation point and find the lyapunov coefficient
+                    hsol=root(lambda x:np.max(np.real(eig(jac(0,steady(X0,eta,nu,k,(1+x)*XD1,XD2)[1],eta,nu,k,(1+x)*XD1,XD2))[0])),x0=ep)
+                    ep=hsol.x
+                    X0=steady(X0,eta,nu,k,(1+ep)*XD1,XD2)[1]
+                    ev,lvec,rvec=eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2),left=True,right=True)
+                    ind=np.argmax(np.real(ev))
+                    omega=np.imag(ev[ind])
+                    q=rvec[:,ind]
+                    p=lvec[:,ind]/np.vdot(rvec[:,ind],lvec[:,ind])
+                    if omega<0:
+                        omega=-omega
+                        q=q.conjugate()
+                        p=p.conjugate()
+                    l=lcoeff(0,X0,eta,nu,k,(1+epsilon)*XD1,XD2,q,p,omega)
+                    if l<0:
+                        bif=1
+                    else:
+                        bif=3
+
                     if stop:
                         break
 
@@ -364,7 +374,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                 if np.abs(2*dep)<=depmax:
                     dep=dep*2
                 else:
-                    dep=depmax*np.sign(dep)
+                    dep=np.sign(dep)*depmax
 
             # half the stepsize until the relative expected change is small
             dX=-np.linalg.solve(mat,dep*XD1)
@@ -428,6 +438,8 @@ if __name__ == "__main__":
     d1min=1
     d1max=args.dmax
     np.random.seed(seed)
+    np.seterr(all='ignore')
+    seterr(all='ignore')
 
     #We should find the lcc of the network and discard the rest.
     start=timeit.default_timer()
@@ -478,8 +490,8 @@ if __name__ == "__main__":
         if bif>0 and integ:
             try:
                 X0=Xs[-1]
-                epsilon=epsilons[-1]+1e-1
-                ev,evec=np.linalg.eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
+                epsilon=epsilons[-1]+1e-2
+                ev,evec=eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
                 tscale=2*np.pi/np.abs(np.real(ev[np.argmin(np.abs(np.real(ev)))]))
                 dt=100/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))
 
