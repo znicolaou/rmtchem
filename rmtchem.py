@@ -209,34 +209,41 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
 
         success,solx=steady(X0,eta,nu,k,(1+ep)*XD1,XD2)
 
-        if success:
+        #If solution is lost, decrease the step and try again
+        if not success:
+            count=0
+            ep=eps[-1]
+            if output>2:
+                print('\nBranch lost! \t%.6f\t%.6f\t%i\n'%(ep,dep,len(sols)), end='')
+            mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
+            dep=dep/2
+            dX=-np.linalg.solve(mat,dep*XD1)
+            X0=sols[-1]+dX
+            ep=ep+dep
+
+        else:
             mat=jac(0,solx,eta,nu,k,(1+ep)*XD1,XD2)
-            # eval,evec=np.linalg.eig(mat.astype(np.longdouble))
             eval,evec=eig(mat)
 
             #Check if Hopf (complex eigenvalue with smallest real part changes sign)
-            if len(evals)>1 and ((np.count_nonzero(np.real(evals[-1])>0)==0 and np.count_nonzero(np.real(eval)>0)>0) or (np.count_nonzero(np.real(evals[-1])>0)>0 and np.count_nonzero(np.real(eval)>0)==0)):
+            omega=np.imag(eval[np.argmin(np.abs(np.real(eval)))])
+            if len(evals)>1 and omega!=0.:
 
-                #we could do this after checking for bifurcations and add the exact location
-                sols.append(solx)
-                eps.append(ep)
-                evals.append(eval)
-                dX=-np.linalg.solve(mat,dep*XD1)
-                X0=sols[-1]+dX
-                ep=ep+dep
-
-                if (np.count_nonzero(np.real(evals[-2])>0)==0 or np.count_nonzero(np.real(evals[-1])>0)==0):
+                if (np.count_nonzero(np.real(evals[-1])>0)==0 and np.count_nonzero(np.real(eval)>0)>0) or (np.count_nonzero(np.real(evals[-1])>0)>0 and np.count_nonzero(np.real(eval)>0)==0):
                     bif=1
                     #locate the bifurcation point and find the lyapunov coefficient
                     hsol=root(lambda x:np.max(np.real(eig(jac(0,steady(X0,eta,nu,k,(1+x)*XD1,XD2)[1],eta,nu,k,(1+x)*XD1,XD2))[0])),x0=ep)
                     eph=hsol.x[0]
                     X0h=steady(X0,eta,nu,k,(1+eph)*XD1,XD2)[1]
                     ev,lvec,rvec=eig(jac(0,X0h,eta,nu,k,(1+eph)*XD1, XD2),left=True,right=True)
-                    sols[-1]=X0h
-                    eps[-1]=eph
-                    evals[-1]=ev
-                    ind=np.argmax(np.real(ev))
-                    omega=np.imag(ev[ind])
+
+                    sols.append(X0h)
+                    eps.append(eph)
+                    evals.append(ev)
+
+                    ind=np.argmin(np.abs(np.real(eval)))
+                    omega=np.imag(eval[ind])
+
                     q=rvec[:,ind]
                     p=lvec[:,ind]/np.vdot(rvec[:,ind],lvec[:,ind])
                     if omega<0:
@@ -256,87 +263,85 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                     if stop:
                         break
 
+                sols.append(solx)
+                eps.append(ep)
+                evals.append(eval)
+                dX=-np.linalg.solve(mat,dep*XD1)
+                X0=sols[-1]+dX
+                ep=ep+dep
+                continue
+
+            #Check if number of real eigenvalues changed
+            if len(evals)>0 and (np.count_nonzero(np.real(evals[-1])>0)!=np.count_nonzero(np.real(eval)>0)>0):
+                if output>2:
+                    print('\nMissed bifurcation!\t%f'%(ep))
+                ep=eps[-1]
+                mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
+                dep=dep/2
+                dX=-np.linalg.solve(mat,dep*XD1)
+                X0=sols[-1]+dX
                 continue
 
             #Check if Saddle Node
-            if  scount>2*SNnum and np.imag(eval[np.argmin(np.abs(np.real(eval)))])==0:
+            if  scount>2*SNnum and omega==0:
                 ys=np.min(np.abs(evals[-SNnum:]),axis=1)
                 xs=eps[-SNnum:]
-                ym=ys[-1]
-                xm=xs[-1]+(xs[-1]-xs[-3])/(ys[-1]-ys[-3])*ys[-3]
+                xm=xs[-1]-(xs[-1]-xs[-3])/(ys[-1]-ys[-3])*ys[-1]
                 x0=xs[0]
                 y0=ys[0]
-                #Check if a root fit to the smallest eigenvalue shows SN closer than threshold
-                if (np.abs(xm-xs[-1])<np.abs(epthrs)) and (xs[-1]-xm)/dep>0:
-                    xs=np.concatenate([xs,np.flip(xs)])
-                    ys=np.concatenate([ys,np.flip(-ys)])
-                    sol2=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xm,(xm-x0)/y0**2])
-                    xn2=sol2[0][0]-ep
+                xs=np.concatenate([xs,np.flip(xs)])
+                ys=np.concatenate([ys,np.flip(-ys)])
+                sol2=leastsq(lambda x: x[0]+x[1]*ys**2-xs,[xm,(xm-x0)/y0**2])
+                sep=sol2[0][0]
+                #If SN appears close, look for a root
+                if (np.abs(sep-xs[-1])<np.abs(epthrs)) and (sep-xs[-1])/dep>0:
+                    mat=jac(0,solx,eta,nu,k,(1+sep)*XD1,XD2)
+                    eval,lvec,rvec=eig(mat,left=True)
 
-                    #Can we instead search for the solution with root?
-                    ssol=root(lambda x:np.min(np.abs(eig(jac(0,steady(X0,eta,nu,k,(1+x)*XD1,XD2)[1],eta,nu,k,(1+x)*XD1,XD2))[0])),x0=ep)
-                    sep=ssol.x[0]
+                    ind=np.argmin(np.abs(eval))
+                    ev=np.real(rvec[:,ind])
+                    iev=np.real(lvec[:,ind])
+                    ev=ev/ev.dot(ev)
+                    iev=iev/iev.dot(ev)
 
-                    if ssol.success and np.abs(sep-ep) < epthrs:
-                        success,ssolx=steady(X0,eta,nu,k,(1+sep)*XD1,XD2)
-                        mat=jac(0,ssolx,eta,nu,k,(1+sep)*XD1,XD2)
-                        eval,evec=np.linalg.eig(mat)
-                        sols.append(ssolx)
-                        eps.append(sep)
-                        evals.append(eval)
+                    alpha=np.real(XD1.dot(iev)/(hess(0,solx,eta,nu,k,(1+sep)*XD1,XD2).dot(ev).dot(ev).dot(iev)))
 
-                        ind=np.argmin(np.abs(eval))
-                        ev=np.real(evec[:,ind])
-                        iev=np.real(np.linalg.inv(evec))[ind]
-                        alpha=XD1.dot(iev)/hess(0,ssolx,eta,nu,k,(1+sep)*XD1,XD2).dot(ev).dot(ev).dot(iev)
-                        if xn2*alpha>0:
-                            X2=solx-4*ev*np.sqrt(xn2*alpha/2)
-                            success2,sol2x=steady(X2,eta,nu,k,(1+ep)*XD1,XD2)
-                            X3=solx+4*ev*np.sqrt(xn2*alpha/2)
-                            success3,sol3x=steady(X3,eta,nu,k,(1+ep)*XD1,XD2)
-                            found=False
+                    if (sep-ep)*alpha>0:
+                        success2,sol2x=steady(solx-2*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
+                        success3,sol3x=steady(solx+2*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
+                        eval2,evec2=np.linalg.eig(jac(0,sol2x,eta,nu,k,(1+ep)*XD1,XD2))
+                        eval3,evec3=np.linalg.eig(jac(0,sol3x,eta,nu,k,(1+ep)*XD1,XD2))
+                        found=False
+                        c1=np.count_nonzero(np.real(eval)>0)
+                        c2=np.count_nonzero(np.real(eval2)>0)
+                        c3=np.count_nonzero(np.real(eval3)>0)
 
-                            if success2 and (np.linalg.norm(solx-sol2x) > 1.0*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
-                                found=True
-                                X0=sol2x
+                        if success2 and c1!=c2:
+                            found=True
+                            X0=sol2x
 
-                            else:
-                                if success3 and (np.linalg.norm(solx-sol3x) > 1.0*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
-                                    found=True
-                                    X0=sol3x
-                                else:
-                                    if output>2:
-                                        print('\nSecond branch not found!\t%.6f\t%.6e\t%i\t%i\t%f\t%f\n'%(ep,dep,success2,success3,np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
-                                    # if success2 and success3:
-                                    mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
-                                    dep=dep/2
+                        elif success3 and c1!=c3:
+                            found=True
+                            X0=sol3x
 
-                                    dX=-np.linalg.solve(mat,dep*XD1)
-                                    X0=sols[-1]+dX
-                                    ep=ep+dep
-                            if found:
-                                scount=0
-                                if bif==0:
-                                    bif=2
-                                if output>1:
-                                    # print('\nSaddle-node bifurcation!\t%.6f\n'%(ep),end='')
-                                    print('\nSaddle-node bifurcation!\t%.6f\t%.6e\t%i\t%i\t%f\t%f\n'%(ep,dep,success2,success3,np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
+                        if found:
+                            scount=0
+                            if bif==0:
+                                bif=2
+                            if output>1:
+                                # print('\nSaddle-node bifurcation!\t%.6f\n'%(ep),end='')
+                                print('\nSaddle-node bifurcation!\t%.6f\t%.6e\t%i\t%i\t%f\t%f\t%i\t%i\t%i\t\n'%(ep,dep,success2,success3,np.abs((solx-sol2x).dot(iev))/np.sqrt((sep-ep)*alpha/2),np.abs((solx-sol3x).dot(iev))/np.sqrt((sep-ep)*alpha/2),c1,c2,c3),end='')
 
-                                sols.append(X0)
-                                mat=jac(0,X0,eta,nu,k,(1+ep)*XD1,XD2)
-                                eval,evec=np.linalg.eig(mat)
-                                eps.append(ep)
-                                evals.append(eval)
-                            else:
-                                if output>2:
-                                    print("Failed convergence at saddle-node")
-                                ep=eps[-1]
-                                mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
-                                dep=dep/2
-                                dX=-np.linalg.solve(mat,dep*XD1)
-                                X0=sols[-1]+dX
-                                ep=ep+dep
-                                continue
+                            mat=jac(0,solx,eta,nu,k,(1+ep)*XD1,XD2)
+                            eval,evec=np.linalg.eig(mat)
+                            sols.append(solx)
+                            eps.append(ep)
+                            evals.append(eval)
+                            mat=jac(0,X0,eta,nu,k,(1+ep)*XD1,XD2)
+                            eval,evec=np.linalg.eig(mat)
+                            sols.append(X0)
+                            eps.append(ep)
+                            evals.append(eval)
 
                             if stop:
                                 break
@@ -346,81 +351,23 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                                 X0=sols[-1]+dX
                                 ep=ep+dep
                                 continue
+                        else:
+                            if output>2:
+                                print('\nSecond branch not found!\t%.6f\t%.6e\t%i\t%i\t%f\t%f\t\n'%(ep,dep,success2,success3,np.abs((solx-sol2x).dot(iev))/np.sqrt((sep-ep)*alpha/2),np.abs((solx-sol3x).dot(iev))/np.sqrt((sep-ep)*alpha/2)),end='')
 
-                    # #Saddle-node detected! Look for the second branch
-                    # if xn2<epthrs and xn2/dep>0:
-                    #     ind=np.argmin(np.abs(eval))
-                    #     ev=np.real(evec[:,ind])
-                    #     iev=np.real(np.linalg.inv(evec))[ind]
-                    #     alpha=XD1.dot(iev)/hess(0,solx,eta,nu,k,(1+ep)*XD1,XD2).dot(ev).dot(ev).dot(iev)
-                    #     if xn2*alpha>0:
-                    #         X2=solx-4*ev*np.sqrt(xn2*alpha/2)
-                    #         success2,sol2x=steady(X2,eta,nu,k,(1+ep)*XD1,XD2)
-                    #         X3=solx+4*ev*np.sqrt(xn2*alpha/2)
-                    #         success3,sol3x=steady(X3,eta,nu,k,(1+ep)*XD1,XD2)
-                    #         found=False
-                    #
-                    #         if success2 and (np.linalg.norm(solx-sol2x) > 1.0*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
-                    #             found=True
-                    #             X0=sol2x
-                    #
-                    #         else:
-                    #             if success3 and (np.linalg.norm(solx-sol3x) > 1.0*np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))):
-                    #                 found=True
-                    #                 X0=sol3x
-                    #             else:
-                    #                 if output>2:
-                    #                     print('\nSecond branch not found!\t%.6f\t%.6e\t%i\t%i\t%f\t%f\n'%(ep,dep,success2,success3,np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
-                    #                 # if success2 and success3:
-                    #                 mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
-                    #                 dep=dep/2
-                    #
-                    #                 dX=-np.linalg.solve(mat,dep*XD1)
-                    #                 X0=sols[-1]+dX
-                    #                 ep=ep+dep
-
-                            # #Change branches and direction or break if branch is found
-                            # if found:
-                            #     success,solx=steady(X0,eta,nu,k,(1+ep)*XD1,XD2)
-                            #
-                            #     if success:
-                            #         scount=0
-                            #         if bif==0:
-                            #             bif=2
-                            #         if output>1:
-                            #             # print('\nSaddle-node bifurcation!\t%.6f\n'%(ep),end='')
-                            #             print('\nSaddle-node bifurcation!\t%.6f\t%.6e\t%i\t%i\t%f\t%f\n'%(ep,dep,success2,success3,np.linalg.norm(solx-sol2x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2)),np.linalg.norm(solx-sol3x)/np.linalg.norm(2*ev*np.sqrt(xn2*alpha/2))),end='')
-                            #
-                            #         sols.append(solx)
-                            #         mat=jac(0,solx,eta,nu,k,(1+ep)*XD1,XD2)
-                            #         eval,evec=np.linalg.eig(mat)
-                            #         eps.append(ep)
-                            #         evals.append(eval)
-                            #     else:
-                            #         if output>2:
-                            #             print("Failed convergence at saddle-node")
-                            #         ep=eps[-1]
-                            #         mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
-                            #         dep=dep/2
-                            #         dX=-np.linalg.solve(mat,dep*XD1)
-                            #         X0=sols[-1]+dX
-                            #         ep=ep+dep
-                            #         continue
-                            #
-                            #     if stop:
-                            #         break
-                            #     else:
-                            #         dep=-dep
-                            #         dX=-np.linalg.solve(mat,dep*XD1)
-                            #         X0=sols[-1]+dX
-                            #         ep=ep+dep
-                            #         continue
+                            ep=eps[-1]
+                            mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
+                            dep=dep/2
+                            dX=-np.linalg.solve(mat,dep*XD1)
+                            X0=sols[-1]+dX
+                            ep=ep+dep
+                            continue
 
                     #If the step is larger compared to predicted SN, decrease the step
-                    if  np.abs(dep)>np.abs(xn2) and xn2/dep>0:
+                    if  np.abs(dep)>np.abs((sep-ep)) and (sep-ep)/dep>0:
                         count=0
                         if output>2:
-                            print('\nBifurcation expected! \t%.6f\t%.6f\t%.6f\n'%(ep,dep,xn2),end='')
+                            print('\nBifurcation expected! \t%.6f\t%.6f\t%.6f\n'%(ep,dep,(sep-ep)),end='')
                         ep=eps[-1]
                         mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
                         dep=dep/2
@@ -430,7 +377,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                         continue
 
             #Check if solution changed more than desired
-            if len(eps)>1 and (np.linalg.norm(solx-(sols[-1]+dX))/np.linalg.norm(dX) > 1e1 or (np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.9 and scount>SNnum)):# or np.count_nonzero(np.where(np.real(eval)<0))!=np.count_nonzero(np.where(np.real(evals[-1])<0))): #neutral saddle should not decrease step
+            if len(eps)>1 and (np.linalg.norm(solx-(sols[-1]+dX))/np.linalg.norm(dX) > 1e1 or (np.min(np.abs(eval))/np.min(np.abs(evals[-1])) < 0.9 and scount>SNnum)):
                 ep=eps[-1]
                 if output>2:
                     print('\nChanged too much!\t%.6f \t%.6e\t%.3f\t%.3f\t%i\n'%(ep,dep,np.linalg.norm(solx-(sols[-1]+dX))/np.linalg.norm(dX),np.min(np.abs(eval))/np.min(np.abs(evals[-1])),np.count_nonzero(np.where(np.real(eval)<0))!=np.count_nonzero(np.where(np.real(evals[-1])<0))), end='')
@@ -467,17 +414,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
             X0=solx+dX
             ep=ep+dep
 
-        #If solution is lost, decrease the step and try again
-        else:
-            count=0
-            ep=eps[-1]
-            if output>2:
-                print('\nBranch lost! decreasing step %.6f %.6f\t\n'%(ep,dep), end='')
-            mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
-            dep=dep/2
-            dX=-np.linalg.solve(mat,dep*XD1)
-            X0=sols[-1]+dX
-            ep=ep+dep
+
 
     if steps>=stepsmax:
         bif=-1
