@@ -307,8 +307,8 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                     alpha=np.real(XD1.dot(iev)/(hess(0,solx,eta,nu,k,(1+sep)*XD1,XD2).dot(ev).dot(ev).dot(iev)))
 
                     if (sep-ep)*alpha>0:
-                        success2,sol2x=steady(solx-2*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
-                        success3,sol3x=steady(solx+2*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
+                        success2,sol2x=steady(solx-8*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
+                        success3,sol3x=steady(solx+8*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
                         eval2,evec2=np.linalg.eig(jac(0,sol2x,eta,nu,k,(1+ep)*XD1,XD2))
                         eval3,evec3=np.linalg.eig(jac(0,sol3x,eta,nu,k,(1+ep)*XD1,XD2))
                         found=False
@@ -353,7 +353,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                                 continue
                         else:
                             if output>2:
-                                print('\nSecond branch not found!\t%.6f\t%.6e\t%i\t%i\t%f\t%f\t\n'%(ep,dep,success2,success3,np.abs((solx-sol2x).dot(iev))/np.sqrt((sep-ep)*alpha/2),np.abs((solx-sol3x).dot(iev))/np.sqrt((sep-ep)*alpha/2)),end='')
+                                print('\nSecond branch not found!\t%.6f\t%.6e\t%i\t%i\t%f\t%f\t%i\t%i\t%i\t\n'%(ep,dep,success2,success3,np.abs((solx-sol2x).dot(iev))/np.sqrt((sep-ep)*alpha/2),np.abs((solx-sol3x).dot(iev))/np.sqrt((sep-ep)*alpha/2),c1,c2,c3),end='')
 
                             ep=eps[-1]
                             mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
