@@ -84,9 +84,11 @@ def lcoeff(t,X,eta,nu,k,XD1,XD2,q,p,omega):
     return 1/(2*omega)*np.real(np.vdot(p,C@q@q@q.conjugate()-2*B@q@v+B@q.conjugate()@w))
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
+    # sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
+    sol=root(lambda x:func(0,x*X0,eta,nu,k,XD1,XD2),x0=np.ones(len(X0)),jac=lambda x:X0*jac(0,x*X0,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
     if np.min(sol.x)>0 and sol.success:
-        return True,sol.x
+        # return True,sol.x
+        return True,X0*sol.x
     else:
         return False,X0
 
@@ -216,7 +218,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
             if output>2:
                 print('\nBranch lost! \t%.6f\t%.6f\t%i\n'%(ep,dep,len(sols)), end='')
             mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
-            dep=dep/2
+            dep=dep/4
             dX=-np.linalg.solve(mat,dep*XD1)
             X0=sols[-1]+dX
             ep=ep+dep
@@ -277,7 +279,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                     print('\nMissed bifurcation!\t%f'%(ep))
                 ep=eps[-1]
                 mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
-                dep=dep/2
+                dep=dep/4
                 dX=-np.linalg.solve(mat,dep*XD1)
                 X0=sols[-1]+dX
                 continue
@@ -307,8 +309,8 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                     alpha=np.real(XD1.dot(iev)/(hess(0,solx,eta,nu,k,(1+sep)*XD1,XD2).dot(ev).dot(ev).dot(iev)))
 
                     if (sep-ep)*alpha>0:
-                        success2,sol2x=steady(solx-8*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
-                        success3,sol3x=steady(solx+8*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
+                        success2,sol2x=steady(solx-4*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
+                        success3,sol3x=steady(solx+4*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
                         eval2,evec2=np.linalg.eig(jac(0,sol2x,eta,nu,k,(1+ep)*XD1,XD2))
                         eval3,evec3=np.linalg.eig(jac(0,sol3x,eta,nu,k,(1+ep)*XD1,XD2))
                         found=False
@@ -382,7 +384,7 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                 if output>2:
                     print('\nChanged too much!\t%.6f \t%.6e\t%.3f\t%.3f\t%i\n'%(ep,dep,np.linalg.norm(solx-(sols[-1]+dX))/np.linalg.norm(dX),np.min(np.abs(eval))/np.min(np.abs(evals[-1])),np.count_nonzero(np.where(np.real(eval)<0))!=np.count_nonzero(np.where(np.real(evals[-1])<0))), end='')
                 mat=jac(0,sols[-1],eta,nu,k,(1+ep)*XD1,XD2)
-                dep=dep/2
+                dep=dep/4
 
                 dX=-np.linalg.solve(mat,dep*XD1)
                 X0=sols[-1]+dX
