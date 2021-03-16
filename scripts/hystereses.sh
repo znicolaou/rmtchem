@@ -2,12 +2,10 @@
 #SBATCH -n 8
 #SBATCH -N 1
 #SBATCH -a [1-16]
-#SBATCH --time=01-00:00:00
+#SBATCH --time=07-00:00:00
 #SBATCH --mem=120gb
 #SBATCH --output=outs/%j.out
-#SBATCH -p TITAN,GTX780,K20,K80,GTX670,GTX980
-###SBATCH -p GTX980
-#more memory, or decrease maxsteps??
+#SBATCH -p GTX980,K80
 
 module load python/anaconda3.7
 source activate my_env
@@ -17,7 +15,9 @@ ZGN_num=64
 ZGN_skip=10
 ZGN_ns="64"
 ZGN_cs="0.5 1.0 2.0"
+ZGN_cs="0.5"
 ZGN_ds="0.05 0.1 0.2"
+ZGN_ds="0.05"
 ZGN_as="0 0.25 0.5"
 
 jid=$((SLURM_ARRAY_TASK_ID-1))
@@ -40,7 +40,7 @@ seed=$((ZGN_num*jid+sid))
 ZGN_filebase="${ZGN_filebase0}/${seed}"
 
 if [ ! -f ${ZGN_filebase}out.dat ]; then
-  timeout 3600 ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip &> /dev/null &
+  timeout 7200 ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip &> /dev/null &
 fi
 
 js=`jobs | wc -l`
