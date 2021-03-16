@@ -84,11 +84,11 @@ def lcoeff(t,X,eta,nu,k,XD1,XD2,q,p,omega):
     return 1/(2*omega)*np.real(np.vdot(p,C@q@q@q.conjugate()-2*B@q@v+B@q.conjugate()@w))
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    # sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
-    sol=root(lambda x:func(0,x*X0,eta,nu,k,XD1,XD2),x0=np.ones(len(X0)),jac=lambda x:X0*jac(0,x*X0,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
+    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
+    # sol=root(lambda x:func(0,x*X0,eta,nu,k,XD1,XD2),x0=np.ones(len(X0)),jac=lambda x:X0*jac(0,x*X0,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
     if np.min(sol.x)>0 and sol.success:
-        # return True,sol.x
-        return True,X0*sol.x
+        return True,sol.x
+        # return True,X0*sol.x
     else:
         return False,X0
 
