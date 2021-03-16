@@ -85,10 +85,8 @@ def lcoeff(t,X,eta,nu,k,XD1,XD2,q,p,omega):
 
 def steady(X0, eta, nu, k, XD1, XD2):
     sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
-    # sol=root(lambda x:func(0,x*X0,eta,nu,k,XD1,XD2),x0=np.ones(len(X0)),jac=lambda x:X0*jac(0,x*X0,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6})
     if np.min(sol.x)>0 and sol.success:
         return True,sol.x
-        # return True,X0*sol.x
     else:
         return False,X0
 
@@ -184,7 +182,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
 
     return ts,Xts,success,m0,state
 
-def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-3, stepsmax=1e5, output=True, stop=True):
+def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-4, stepsmax=1e5, output=True, stop=True):
     n=len(X0)
     eps=[]
     sols=[]
