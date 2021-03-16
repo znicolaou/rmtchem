@@ -307,8 +307,8 @@ def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depm
                     alpha=np.real(XD1.dot(iev)/(hess(0,solx,eta,nu,k,(1+sep)*XD1,XD2).dot(ev).dot(ev).dot(iev)))
 
                     if (sep-ep)*alpha>0:
-                        success2,sol2x=steady(solx-4*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
-                        success3,sol3x=steady(solx+4*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
+                        success2,sol2x=steady(solx-10*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
+                        success3,sol3x=steady(solx+10*ev*np.sqrt((sep-ep)*alpha/2),eta,nu,k,(1+ep)*XD1,XD2)
                         eval2,evec2=np.linalg.eig(jac(0,sol2x,eta,nu,k,(1+ep)*XD1,XD2))
                         eval3,evec3=np.linalg.eig(jac(0,sol3x,eta,nu,k,(1+ep)*XD1,XD2))
                         found=False
