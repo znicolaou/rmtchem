@@ -3,7 +3,7 @@ Random networks of chemical reactions
 
 The rmtchem library contains the Python file rmtchem.py and a Jupyter notbook file rmtchem.ipny for individual runs, along with scripts for running batches and a Jupyter notbook file plot.ipny for plotting results.
 
-The required python packages can be installed with anaconda with `conda create env -n rmtchem_env -c conda-forge numpy scipy cantera networkx matplotlib jupyter` followed by `conda activate rmtchem_env`.
+The required python packages can be installed with anaconda with `conda create -n rmtchem_env -c conda-forge numpy scipy cantera networkx matplotlib jupyter` followed by `conda activate rmtchem_env`.
 
 Running `./rmtchem.py -h` produces the following usage message:
 
