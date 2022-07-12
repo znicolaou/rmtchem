@@ -58,22 +58,22 @@ def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
 
         success=False
         count=0
-        while not success and count<1000:
-            if verbose:
-                print('%d  \r'%(i),end='')
-            count=count+1
-            products=[]
-            tatoms=np.sum(rcounts[:,np.newaxis]*atoms[reactants],axis=0)
-            for j in range(3):
-                choices=np.setdiff1d(np.where([np.all(atoms[k]<=tatoms) for k in range(n)])[0], reactants)
-                if len(choices) == 0:
-                    break
-                prod=np.random.choice(choices,size=1,replace=False)
-                products=products+[prod]
-                tatoms=tatoms-atoms[prod]
-                if np.sum(tatoms)==0:
-                    success=True
-                    break
+        # while not success and count<100:
+        if verbose:
+            print('%d  \r'%(i),end='')
+        count=count+1
+        products=[]
+        tatoms=np.sum(rcounts[:,np.newaxis]*atoms[reactants],axis=0)
+        for j in range(3):
+            choices=np.setdiff1d(np.where([np.all(atoms[k]<=tatoms) for k in range(n)])[0], reactants)
+            if len(choices) == 0:
+                break
+            prod=np.random.choice(choices,size=1,replace=False)
+            products=products+[prod]
+            tatoms=tatoms-atoms[prod]
+            if np.sum(tatoms)==0:
+                success=True
+                break
 
         if success:
             products,pcounts=np.unique(products,return_counts=True)
