@@ -41,7 +41,70 @@ def get_network(n,nr,na=0):
             k[2*i+1]=np.random.exponential(scale=-deltaG)
             k[2*i]=k[2*i+1]*np.exp(deltaG)
 
-    return eta,nu,k,G
+    return eta,nu,k,G,[]
+
+def get_network_atoms(n,nr,na=0,natoms=0):
+
+    eta=np.zeros((2*nr,n))
+    nu=np.zeros((2*nr,n))
+    k=np.zeros(2*nr)
+    G=np.random.normal(loc=0, scale=1.0, size=n)
+    atoms=np.random.randint(0,5,size=(n,natoms))
+
+    i=0
+    while i<nr:
+        reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
+        rcounts=np.random.randint(1,3,size=len(reactants))
+
+        success=False
+        count=0
+        while not success and count<100:
+            count=count+1
+            products=[]
+            tatoms=np.sum(rcounts[:,np.newaxis]*atoms[reactants],axis=0)
+            for j in range(3):
+                choices=np.setdiff1d(np.where([np.all(atoms[k]<=tatoms) for k in range(n)])[0], reactants)
+                if len(choices) == 0:
+                    break
+                prod=np.random.choice(choices,size=1,replace=False)
+                products=products+[prod]
+                tatoms=tatoms-atoms[prod]
+                if np.sum(tatoms)==0:
+                    success=True
+                    break
+
+        if success:
+            products,pcounts=np.unique(products,return_counts=True)
+            new_eta=np.zeros(n)
+            new_nu=np.zeros(n)
+            new_eta[reactants]=rcounts
+            new_nu[products]=pcounts
+            repeat=False
+            for j in range(2*i):
+                if np.all(new_eta==eta[j]) and np.all(new_nu==nu[j]):
+                    repeat=True
+            if not repeat:
+                eta[2*i]=new_eta
+                nu[2*i]=new_nu
+
+                if i<na:
+                    auto=np.random.choice(reactants)
+                    nu[2*i,auto]=eta[2*i,auto]
+
+                nu[2*i+1]=eta[2*i]
+                eta[2*i+1]=nu[2*i]
+
+                #Randomly sample the rate constant in the deltaG>0 direction
+                deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
+                if deltaG>0:
+                    k[2*i]=np.random.exponential(scale=deltaG)
+                    k[2*i+1]=k[2*i]*np.exp(-deltaG)
+                else:
+                    k[2*i+1]=np.random.exponential(scale=-deltaG)
+                    k[2*i]=k[2*i+1]*np.exp(deltaG)
+
+                i=i+1
+    return eta,nu,k,G,atoms
 
 def get_drive(eta,nu,k,G,d0,nd):
     n=len(G)
@@ -461,7 +524,7 @@ if __name__ == "__main__":
 
     #We should find the lcc of the network and discard the rest.
     start=timeit.default_timer()
-    eta,nu,k,G=get_network(n,nr,na)
+    eta,nu,k,G,atoms=get_network_atoms(n,nr,na)
 
     if args.type==0:
         row,col=np.where(eta[::2]-nu[::2]!=0)
