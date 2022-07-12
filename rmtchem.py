@@ -43,7 +43,7 @@ def get_network(n,nr,na=0):
 
     return eta,nu,k,G,[]
 
-def get_network_atoms(n,nr,na=0,natoms=0):
+def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
 
     eta=np.zeros((2*nr,n))
     nu=np.zeros((2*nr,n))
@@ -58,7 +58,9 @@ def get_network_atoms(n,nr,na=0,natoms=0):
 
         success=False
         count=0
-        while not success and count<100:
+        while not success and count<1000:
+            if verbose:
+                print('%d  \r'%(i),end='')
             count=count+1
             products=[]
             tatoms=np.sum(rcounts[:,np.newaxis]*atoms[reactants],axis=0)
@@ -104,6 +106,8 @@ def get_network_atoms(n,nr,na=0,natoms=0):
                     k[2*i]=k[2*i+1]*np.exp(deltaG)
 
                 i=i+1
+            elif verbose:
+                print('repeat')
     return eta,nu,k,G,atoms
 
 def get_drive(eta,nu,k,G,d0,nd):
