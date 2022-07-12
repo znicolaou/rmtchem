@@ -64,7 +64,7 @@ def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
             print('%d  %d %d\r'%(i, repeats, count),end='')
         products=[]
         tatoms=np.sum(rcounts[:,np.newaxis]*atoms[reactants],axis=0)
-        for j in range(3):
+        for j in range(6):
             choices=np.setdiff1d(np.where([np.all(atoms[k]<=tatoms) for k in range(n)])[0], reactants)
             if len(choices) == 0:
                 break
