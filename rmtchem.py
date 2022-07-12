@@ -52,16 +52,16 @@ def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
     atoms=np.random.randint(0,5,size=(n,natoms))
 
     i=0
+    count=0
     repeats=0
     while i<nr:
         reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
         rcounts=np.random.randint(1,3,size=len(reactants))
 
         success=False
-        count=0
-        if verbose:
-            print('%d  %d %d\r'%(i, repeats, counts),end='')
         count=count+1
+        if verbose:
+            print('%d  %d %d\r'%(i, repeats, count),end='')
         products=[]
         tatoms=np.sum(rcounts[:,np.newaxis]*atoms[reactants],axis=0)
         for j in range(3):
