@@ -52,15 +52,15 @@ def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
     atoms=np.random.randint(0,5,size=(n,natoms))
 
     i=0
+    repeats=0
     while i<nr:
         reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
         rcounts=np.random.randint(1,3,size=len(reactants))
 
         success=False
         count=0
-        # while not success and count<100:
         if verbose:
-            print('%d  \r'%(i),end='')
+            print('%d  %d %d\r'%(i, repeats, counts),end='')
         count=count+1
         products=[]
         tatoms=np.sum(rcounts[:,np.newaxis]*atoms[reactants],axis=0)
@@ -106,8 +106,8 @@ def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
                     k[2*i]=k[2*i+1]*np.exp(deltaG)
 
                 i=i+1
-            elif verbose:
-                print('repeat')
+            else:
+                repeats=repeats+1
     return eta,nu,k,G,atoms
 
 def get_drive(eta,nu,k,G,d0,nd):
