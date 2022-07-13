@@ -493,6 +493,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Random chemical reaction networks.')
     parser.add_argument("--filebase", type=str, required=True, dest='filebase', help='Base string for file output')
     parser.add_argument("--n", type=int, default=10, dest='n', help='Number of species')
+    parser.add_argument("--atoms", type=int, default=5, dest='natoms', help='Number of atomic conservation laws')
     parser.add_argument("--nr", type=int, default=20, dest='nr', help='Number of reactions')
     parser.add_argument("--nd", type=int, default=1, dest='nd', help='Number of drives')
     parser.add_argument("--dmax", type=float, default=100, dest='dmax', help='Maximum drive')
@@ -511,6 +512,7 @@ if __name__ == "__main__":
     nr=args.nr
     nd=args.nd
     na=args.na
+    natoms=args.natoms
     filebase=args.filebase
     output=args.output
     quasi=args.quasi
@@ -528,14 +530,20 @@ if __name__ == "__main__":
 
     #We should find the lcc of the network and discard the rest.
     start=timeit.default_timer()
-    eta,nu,k,G,atoms=get_network_atoms(n,nr,na)
+    if args.natoms==0:
+        eta,nu,k,G,atoms=get_network(n,nr,na)
+    else:
+        verbose=False
+        if args.output==2:
+            verbose=True
+        eta,nu,k,G,atoms=get_network_atoms(n,nr,na,natoms,verbose)
 
     if args.type==0:
         row,col=np.where(eta[::2]-nu[::2]!=0)
         data=(eta[::2]-nu[::2])[row,col]
         A=csr_matrix((data,(row,col)),shape=(2*nr,n),dtype=int)
         adj=A.T.dot(A)
-        g=nx.convert_matrix.from_scipy_sparse_matrix(adj)
+        g=nx.convert_matrix.from_scipy_sparse_array(adj)
 
     if args.type==1:
         g=nx.gnm_random_graph(n,nr,seed=seed)
@@ -596,13 +604,17 @@ if __name__ == "__main__":
 
     stop=timeit.default_timer()
     file=open(filebase+'out.dat','w')
-    epsilon=epsilons[-1]
+    if quasi:
+        epsilon=epsilons[-1]
+    else:
+        epsilon=0
     print(n,nr,nd,na,seed,d0,d1max, file=file)
     print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, dn1, dn2, state), file=file)
     file.close()
 
     if output:
         print('\n%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, dn1, dn2, state))
-        np.save(filebase+'Xs.npy',Xs[::skip])
-        np.save(filebase+'epsilons.npy',epsilons[::skip])
-        np.save(filebase+'evals.npy',evals[::skip])
+        if quasi:
+            np.save(filebase+'Xs.npy',Xs[::skip])
+            np.save(filebase+'epsilons.npy',epsilons[::skip])
+            np.save(filebase+'evals.npy',evals[::skip])
