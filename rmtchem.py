@@ -11,10 +11,11 @@ from scipy.integrate import solve_bvp
 from scipy.signal import find_peaks
 from scipy.linalg import eig
 from scipy.special import seterr
+from itertools import combinations
 
 def get_network(n,nr,na=0):
-    eta=np.zeros((2*nr,n))
-    nu=np.zeros((2*nr,n))
+    eta=np.zeros((2*nr,n),dtype=int)
+    nu=np.zeros((2*nr,n),dtype=int)
     k=np.zeros(2*nr)
     G=np.random.normal(loc=0, scale=1.0, size=n)
 
@@ -45,69 +46,97 @@ def get_network(n,nr,na=0):
 
 def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
 
-    eta=np.zeros((2*nr,n))
-    nu=np.zeros((2*nr,n))
+    eta=np.zeros((2*nr,n),dtype=int)
+    nu=np.zeros((2*nr,n),dtype=int)
     k=np.zeros(2*nr)
-    G=np.random.normal(loc=0, scale=1.0, size=n)
     atoms=np.random.randint(0,5,size=(n,natoms))
+    G=np.random.normal(loc=0, scale=1.0, size=n)
 
-    i=0
+    pcounts=[[[1],[2]],[[1,1],[1,2],[2,1],[2,2]]]
+    tatoms=[]
+    combs=[]
+    for i in range(len(pcounts)):
+        combs=combs+[list(combinations(np.arange(n),i+1))]
+        tatoms=tatoms+[np.sum(np.array(pcounts[i])[:,np.newaxis,:,np.newaxis]*atoms[combs[i]][np.newaxis,...],axis=2)]
+
+    uniqs=[]
+    for num in range(len(pcounts)):
+        un=[]
+        for num2 in range(len(pcounts[num])):
+            un=un+[np.unique(tatoms[num][num2],axis=0)]
+        uniqs=uniqs+[un]
+
+    choices=[]
+    for num in range(len(pcounts)):
+        c1=[]
+        for num2 in range(len(uniqs[num])):
+            c2=[]
+            for num3 in range(len(pcounts)):
+                c3=[]
+                for num4 in range(len(uniqs[num3])):
+                    A = np.array(uniqs[num][num2])
+                    B = np.array(uniqs[num3][num4])
+                    nrows, ncols = A.shape
+                    dtype={'names':['f{}'.format(i) for i in range(ncols)],
+                           'formats':ncols * [A.dtype]}
+                    C = np.intersect1d(A.view(dtype), B.view(dtype))
+                    c3=c3+[C]
+                c2=c2+[c3]
+            c1=c1+[c2]
+        choices=choices+[c1]
+
+    reactions=[]
     count=0
-    repeats=0
-    while i<nr:
-        reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
-        rcounts=np.random.randint(1,3,size=len(reactants))
-
-        success=False
+    while len(reactions)<nr:
         count=count+1
+        num=np.random.choice(len(pcounts))
+        num2=np.random.choice(len(tatoms[num]))
+        num3=np.random.choice(len(pcounts))
+        num4=np.random.choice(len(tatoms[num3]))
         if verbose:
-            print('%d  %d %d\r'%(i, repeats, count),end='')
-        products=[]
-        tatoms=np.sum(rcounts[:,np.newaxis]*atoms[reactants],axis=0)
-        for j in range(6):
-            choices=np.setdiff1d(np.where([np.all(atoms[k]<=tatoms) for k in range(n)])[0], reactants)
-            if len(choices) == 0:
-                break
-            prod=np.random.choice(choices,size=1,replace=False)
-            products=products+[prod]
-            tatoms=tatoms-atoms[prod]
-            if np.sum(tatoms)==0:
-                success=True
-                break
+            print('%d\t%d\t'%(count,len(reactions)),end='\r')
 
-        if success:
-            products,pcounts=np.unique(products,return_counts=True)
-            new_eta=np.zeros(n)
-            new_nu=np.zeros(n)
-            new_eta[reactants]=rcounts
-            new_nu[products]=pcounts
-            repeat=False
-            for j in range(2*i):
-                if np.all(new_eta==eta[j]) and np.all(new_nu==nu[j]):
-                    repeat=True
-            if not repeat:
-                eta[2*i]=new_eta
-                nu[2*i]=new_nu
+        C=choices[num][num2][num3][num4]
 
-                if i<na:
-                    auto=np.random.choice(reactants)
-                    nu[2*i,auto]=eta[2*i,auto]
-
-                nu[2*i+1]=eta[2*i]
-                eta[2*i+1]=nu[2*i]
-
-                #Randomly sample the rate constant in the deltaG>0 direction
-                deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
-                if deltaG>0:
-                    k[2*i]=np.random.exponential(scale=deltaG)
-                    k[2*i+1]=k[2*i]*np.exp(-deltaG)
-                else:
-                    k[2*i+1]=np.random.exponential(scale=-deltaG)
-                    k[2*i]=k[2*i+1]*np.exp(deltaG)
-
-                i=i+1
+        if(len(C)>0):
+            choice=np.random.choice(C)
+            if num==num3 and num2==num4:
+                ind1=np.where(tatoms[num][num2].view(dtype)==choice)[0]
+                if len(ind1)>1:
+                    reaction=[[num,num3],[num2,num4],list(np.random.choice(ind1,2,replace=False))]
+                    sreaction=np.transpose(reaction)[np.lexsort(reaction)].tolist()
+                    if not sreaction in reactions:
+                        reactions=reactions+[sreaction]
             else:
-                repeats=repeats+1
+                ind1=np.where(tatoms[num][num2].view(dtype)==choice)[0]
+                ind2=np.where(tatoms[num3][num4].view(dtype)==choice)[0]
+                reaction=[[num,num3],[num2,num4],[np.random.choice(ind1),np.random.choice(ind2)]]
+                sreaction=np.transpose(reaction)[np.lexsort(reaction)].tolist()
+                if not sreaction in reactions:
+                    reactions=reactions+[sreaction]
+
+
+    for i in range(nr):
+        reaction=reactions[i]
+        eta[2*i][list(combs[reaction[0][0]][reaction[0][2]])]=pcounts[reaction[0][0]][reaction[0][1]]
+        nu[2*i][list(combs[reaction[1][0]][reaction[1][2]])]=pcounts[reaction[1][0]][reaction[1][1]]
+
+        if i<na:
+            auto=np.random.choice(reactants)
+            nu[2*i,auto]=eta[2*i,auto]
+
+        nu[2*i+1]=eta[2*i]
+        eta[2*i+1]=nu[2*i]
+
+        #Randomly sample the rate constant in the deltaG>0 direction
+        deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
+        if deltaG>0:
+            k[2*i]=np.random.exponential(scale=deltaG)
+            k[2*i+1]=k[2*i]*np.exp(-deltaG)
+        else:
+            k[2*i+1]=np.random.exponential(scale=-deltaG)
+            k[2*i]=k[2*i+1]*np.exp(deltaG)
+
     return eta,nu,k,G,atoms
 
 def get_drive(eta,nu,k,G,d0,nd):
@@ -593,7 +622,7 @@ if __name__ == "__main__":
                 if output:
                     print('\nIntegrating',epsilon,tscale,dt)
                 ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1e4*tscale,dt,output=output)
-                print(m0,len(ts))
+                # print(m0,len(ts))
                 sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
                 dn1=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm(Xts[:,i]-X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
