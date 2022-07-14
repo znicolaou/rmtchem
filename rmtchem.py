@@ -12,44 +12,18 @@ from scipy.signal import find_peaks
 from scipy.linalg import eig
 from scipy.special import seterr
 from itertools import combinations
+import warnings
+warnings.filterwarnings("ignore",category=FutureWarning)
 
-def get_network(n,nr,na=0):
-    eta=np.zeros((2*nr,n),dtype=int)
-    nu=np.zeros((2*nr,n),dtype=int)
-    k=np.zeros(2*nr)
-    G=np.random.normal(loc=0, scale=1.0, size=n)
-
-    for i in range(nr):
-        reactants=np.random.choice(np.arange(n),size=np.random.randint(1,4),replace=False)
-        products=np.random.choice(np.setdiff1d(np.arange(n),reactants),size=np.random.randint(1,4),replace=False)
-
-        eta[2*i,reactants]=np.random.randint(1,3,size=len(reactants))
-        nu[2*i,products]=np.random.randint(1,3,size=len(products))
-
-        if i<na:
-            auto=np.random.choice(reactants)
-            nu[2*i,auto]=eta[2*i,auto]
-
-        nu[2*i+1]=eta[2*i]
-        eta[2*i+1]=nu[2*i]
-
-        #Randomly sample the rate constant in the deltaG>0 direction
-        deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
-        if deltaG>0:
-            k[2*i]=np.random.exponential(scale=deltaG)
-            k[2*i+1]=k[2*i]*np.exp(-deltaG)
-        else:
-            k[2*i+1]=np.random.exponential(scale=-deltaG)
-            k[2*i]=k[2*i+1]*np.exp(deltaG)
-
-    return eta,nu,k,G,[]
-
-def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
+def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5):
 
     eta=np.zeros((2*nr,n),dtype=int)
     nu=np.zeros((2*nr,n),dtype=int)
     k=np.zeros(2*nr)
-    atoms=np.random.randint(0,5,size=(n,natoms))
+    if natoms>0:
+        atoms=np.random.randint(0,atmax,size=(n,natoms))
+    else:
+        atoms=np.zeros((n,1))
     G=np.random.normal(loc=0, scale=1.0, size=n)
 
     pcounts=[[[1],[2]],[[1,1],[1,2],[2,1],[2,2]]]
@@ -63,9 +37,12 @@ def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
     for num in range(len(pcounts)):
         un=[]
         for num2 in range(len(pcounts[num])):
+            if verbose:
+                print('%d\t%d\t'%(num,num2),end='\r')
             un=un+[np.unique(tatoms[num][num2],axis=0)]
         uniqs=uniqs+[un]
-
+    if verbose:
+        print('')
     choices=[]
     for num in range(len(pcounts)):
         c1=[]
@@ -74,6 +51,8 @@ def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
             for num3 in range(len(pcounts)):
                 c3=[]
                 for num4 in range(len(uniqs[num3])):
+                    if verbose:
+                        print('%d\t%d\t%d\t%d\t'%(num,num2,num3,num4),end='\r')
                     A = np.array(uniqs[num][num2])
                     B = np.array(uniqs[num3][num4])
                     nrows, ncols = A.shape
@@ -84,10 +63,11 @@ def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
                 c2=c2+[c3]
             c1=c1+[c2]
         choices=choices+[c1]
-
+    if verbose:
+        print('')
     reactions=[]
     count=0
-    while len(reactions)<nr:
+    while len(reactions)<nr and count<itmax:
         count=count+1
         num=np.random.choice(len(pcounts))
         num2=np.random.choice(len(tatoms[num]))
@@ -101,20 +81,29 @@ def get_network_atoms(n,nr,na=0,natoms=0,verbose=False):
         if(len(C)>0):
             choice=np.random.choice(C)
             if num==num3 and num2==num4:
-                ind1=np.where(tatoms[num][num2].view(dtype)==choice)[0]
-                if len(ind1)>1:
-                    reaction=[[num,num3],[num2,num4],list(np.random.choice(ind1,2,replace=False))]
+                inds1=np.where(tatoms[num][num2].view(dtype)==choice)[0]
+                if len(inds1)>1:
+                    ind1,ind2=np.random.choice(inds1,2,replace=False)
+                    if len(np.intersect1d(combs[num][ind1],combs[num3][ind2]))==0:
+                        reaction=[[num,num3],[num2,num4],[ind1,ind2]]
+                        sreaction=np.transpose(reaction)[np.lexsort(reaction)].tolist()
+                        if not sreaction in reactions:
+                            reactions=reactions+[sreaction]
+            else:
+                inds1=np.where(tatoms[num][num2].view(dtype)==choice)[0]
+                inds2=np.where(tatoms[num3][num4].view(dtype)==choice)[0]
+                ind1=np.random.choice(inds1)
+                ind2=np.random.choice(inds2)
+                if len(np.intersect1d(combs[num][ind1],combs[num3][ind2]))==0:
+                    reaction=[[num,num3],[num2,num4],[ind1,ind2]]
                     sreaction=np.transpose(reaction)[np.lexsort(reaction)].tolist()
                     if not sreaction in reactions:
                         reactions=reactions+[sreaction]
-            else:
-                ind1=np.where(tatoms[num][num2].view(dtype)==choice)[0]
-                ind2=np.where(tatoms[num3][num4].view(dtype)==choice)[0]
-                reaction=[[num,num3],[num2,num4],[np.random.choice(ind1),np.random.choice(ind2)]]
-                sreaction=np.transpose(reaction)[np.lexsort(reaction)].tolist()
-                if not sreaction in reactions:
-                    reactions=reactions+[sreaction]
+    if verbose:
+        print('')
 
+    if len(reactions)<nr:
+        raise ValueError('Maximum iterations reach; generated %i of %i reactions'%(len(reactions), nr))
 
     for i in range(nr):
         reaction=reactions[i]
@@ -559,91 +548,111 @@ if __name__ == "__main__":
 
     #We should find the lcc of the network and discard the rest.
     start=timeit.default_timer()
-    if args.natoms==0:
-        eta,nu,k,G,atoms=get_network(n,nr,na)
+    if args.type==1:
+        g=nx.gnm_random_graph(n,nr,seed=seed)
+        adj=nx.adjacency_matrix(g)
+        lcc=np.array(list(max(nx.connected_components(g), key=len)))
+        n=len(lcc)
+        r=n
+        if rank:
+            r=np.linalg.matrix_rank(adj.toarray()[np.ix_(lcc,lcc)])
+        stop=timeit.default_timer()
+        file=open(filebase+'out.dat','w')
+        bif=-3
+        state=-1
+        Xs=np.array([])
+        evals=np.array([])
+        epsilon=0
+        sd1=0
+        sd2=0
+        wd1=0
+        wd2=0
+        dn1=0
+        dn2=0
+        links=np.count_nonzero(adj.toarray()-np.diag(np.diag(adj.toarray())))//2
+        print(n,nr,nd,na,seed,d0,d1max, file=file)
+        print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%i\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, dn1, dn2, state,links), file=file)
+        file.close()
+
     else:
         verbose=False
         if args.output==2:
             verbose=True
-        eta,nu,k,G,atoms=get_network_atoms(n,nr,na,natoms,verbose)
+        eta,nu,k,G,atoms=get_network(n,nr,na,natoms,verbose)
 
-    if args.type==0:
         row,col=np.where(eta[::2]-nu[::2]!=0)
         data=(eta[::2]-nu[::2])[row,col]
         A=csr_matrix((data,(row,col)),shape=(2*nr,n),dtype=int)
         adj=A.T.dot(A)
         g=nx.convert_matrix.from_scipy_sparse_array(adj)
 
-    if args.type==1:
-        g=nx.gnm_random_graph(n,nr,seed=seed)
-        adj=nx.adjacency_matrix(g)
+        lcc=np.array(list(max(nx.connected_components(g), key=len)))
+        n=len(lcc)
+        eta=eta[:,lcc]
+        nu=nu[:,lcc]
+        G=G[lcc]
 
-    lcc=np.array(list(max(nx.connected_components(g), key=len)))
-    n=len(lcc)
-    eta=eta[:,lcc]
-    nu=nu[:,lcc]
-    G=G[lcc]
+        X0=np.exp(-G)
+        r=n
+        if rank:
+            r=np.linalg.matrix_rank(adj.toarray()[np.ix_(lcc,lcc)])
+            if output:
+                print("rank is ", r, "lcc is ", n)
 
-    X0=np.exp(-G)
-    r=n
-    if rank:
-        r=np.linalg.matrix_rank(adj.toarray()[np.ix_(lcc,lcc)])
-        if output:
-            print("rank is ", r, "lcc is ", n)
+        XD1,XD2,inds=get_drive(eta,nu,k,G,d0,nd)
 
-    XD1,XD2,inds=get_drive(eta,nu,k,G,d0,nd)
-
-    bif=-3
-    state=-1
-    Xs=np.array([])
-    evals=np.array([])
-    epsilon=0
-    sd1=0
-    sd2=0
-    wd1=0
-    wd2=0
-    dn1=0
-    dn2=0
-
-    if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
-        Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, d1max, 0, dep, output=output,stop=True)
-        sd1=Sdot(rates(Xs[-1],eta,nu,k))
-        wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
-
-        #following a bifurcation, integrate the system
-        if bif>0 and integ:
-            try:
-                X0=Xs[-1]
-                epsilon=epsilons[-1]+1e-2
-                ev,evec=eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
-                tscale=2*np.pi/np.abs(np.real(ev[np.argmin(np.abs(np.real(ev)))]))
-                dt=100/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))
-
-                if output:
-                    print('\nIntegrating',epsilon,tscale,dt)
-                ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1e4*tscale,dt,output=output)
-                # print(m0,len(ts))
-                sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
-                wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
-                dn1=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm(Xts[:,i]-X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
-                dn2=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm((Xts[:,i]-X0)/X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
-            except Exception as err:
-                print('Error integrating seed %i\t%i\t%i\t%i\t%i\n'%(seed,n,nr,nd,na),end='')
-                print(str(err))
-
-    stop=timeit.default_timer()
-    file=open(filebase+'out.dat','w')
-    if quasi:
-        epsilon=epsilons[-1]
-    else:
+        bif=-3
+        state=-1
+        Xs=np.array([])
+        evals=np.array([])
         epsilon=0
-    print(n,nr,nd,na,seed,d0,d1max, file=file)
-    print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, dn1, dn2, state), file=file)
-    file.close()
+        sd1=0
+        sd2=0
+        wd1=0
+        wd2=0
+        dn1=0
+        dn2=0
 
-    if output:
-        print('\n%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, dn1, dn2, state))
+        if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
+            Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, d1max, 0, dep, output=output,stop=True)
+            sd1=Sdot(rates(Xs[-1],eta,nu,k))
+            wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
+
+            #following a bifurcation, integrate the system
+            if bif>0 and integ:
+                try:
+                    X0=Xs[-1]
+                    epsilon=epsilons[-1]+1e-2
+                    ev,evec=eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
+                    tscale=2*np.pi/np.abs(np.real(ev[np.argmin(np.abs(np.real(ev)))]))
+                    dt=100/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))
+
+                    if output:
+                        print('\nIntegrating',epsilon,tscale,dt)
+                    ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1e4*tscale,dt,output=output)
+                    # print(m0,len(ts))
+                    sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+                    wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+                    dn1=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm(Xts[:,i]-X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+                    dn2=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm((Xts[:,i]-X0)/X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+                except Exception as err:
+                    print('Error integrating seed %i\t%i\t%i\t%i\t%i\n'%(seed,n,nr,nd,na),end='')
+                    print(str(err))
+
+        stop=timeit.default_timer()
+        file=open(filebase+'out.dat','w')
         if quasi:
-            np.save(filebase+'Xs.npy',Xs[::skip])
-            np.save(filebase+'epsilons.npy',epsilons[::skip])
-            np.save(filebase+'evals.npy',evals[::skip])
+            epsilon=epsilons[-1]
+        else:
+            epsilon=0
+        links=np.count_nonzero(adj.toarray()-np.diag(np.diag(adj.toarray())))//2
+        print(n,nr,nd,na,seed,d0,d1max, file=file)
+        print('%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%i\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, dn1, dn2, state,links), file=file)
+        file.close()
+
+        if output:
+            print('\n%.3f\t%i\t%i\t%i\t%i\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%i'%(stop-start, seed, n, r, bif, epsilon, sd1, sd2, wd1, wd2, dn1, dn2, state))
+            if quasi:
+                np.save(filebase+'Xs.npy',Xs[::skip])
+                np.save(filebase+'epsilons.npy',epsilons[::skip])
+                np.save(filebase+'evals.npy',evals[::skip])
