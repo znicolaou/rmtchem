@@ -111,7 +111,8 @@ def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5):
         nu[2*i][list(combs[reaction[1][0]][reaction[1][2]])]=pcounts[reaction[1][0]][reaction[1][1]]
 
         if i<na:
-            auto=np.random.choice(reactants)
+            reactants=combs[reaction[0][0]][reaction[0][2]]
+            auto=np.random.choice(reactants) 
             nu[2*i,auto]=eta[2*i,auto]
 
         nu[2*i+1]=eta[2*i]
@@ -153,6 +154,9 @@ def func(t, X, eta, nu, k, XD1, XD2):
 
 def jac(t,X,eta,nu,k,XD1,XD2):
     return -np.diag(XD2)+np.transpose((eta-nu)*rates(X,eta,nu,k)[:,np.newaxis]).dot(nu/X)
+
+def dfdepsilon(t,X,eta,nu,k,XD1,XD2):
+    return XD1
 
 def hess(t,X,eta,nu,k,XD1,XD2):
     return np.tensordot(eta-nu,rates(X,eta,nu,k)[:,np.newaxis,np.newaxis]/(X[np.newaxis,:,np.newaxis]*X[np.newaxis,np.newaxis,:])*(nu[:,:,np.newaxis]*nu[:,np.newaxis,:]-nu[:,:,np.newaxis]*np.identity(len(X))[np.newaxis,:,:]), axes=(0,0))
