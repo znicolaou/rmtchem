@@ -11,6 +11,7 @@ from scipy.integrate import solve_bvp
 from scipy.signal import find_peaks
 from scipy.linalg import eig
 from scipy.special import seterr
+from scipy.linalg import null_space
 from itertools import combinations
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -112,7 +113,7 @@ def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5):
 
         if i<na:
             reactants=combs[reaction[0][0]][reaction[0][2]]
-            auto=np.random.choice(reactants) 
+            auto=np.random.choice(reactants)
             nu[2*i,auto]=eta[2*i,auto]
 
         nu[2*i+1]=eta[2*i]
@@ -270,6 +271,117 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
         raise e
 
     return ts,Xts,success,m0,state
+
+
+def pseudoarclength (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4, dsmin=1e-16, itmax=1e5, output=True, stop=True):
+    def step(x,dx,x_last,ds):
+        X=x[:-1]
+        ep=x[-1]/np.sum(X)
+
+        f=func(t,X,eta,nu,k,(1+ep)*XD1,XD2)
+        ps=(x-x_last).dot(dx)-ds
+        return np.concatenate([f,[ps]])
+
+    def step_jac(x,dx,x_last,ds):
+        X=x[:-1]
+        ep=x[-1]/np.sum(X)
+
+        a=jac(t,X,eta,nu,k,(1+ep)*XD1,XD2)-ep*XD1[:,np.newaxis]/np.sum(X)
+        b=XD1[:,np.newaxis]/np.sum(X)
+        A=np.hstack([a,b])
+
+        return np.vstack([A,dx])
+
+    start=timeit.default_timer()
+    t=0
+    X=X0
+    ep=ep0
+
+    a=jac(t,X,eta,nu,k,(1+ep)*XD1,XD2)-ep*XD1[:,np.newaxis]/np.sum(X)
+    b=XD1[:,np.newaxis]/np.sum(X)
+    A=np.hstack([a,b])
+    dx=null_space(A)[:,0]
+    if dx[-1]<0:
+        dx=-dx
+    x_last=np.concatenate([X,[0]])
+
+    Xs=[]
+    eps=[]
+    dxs=[]
+    evals=[]
+    count=0
+    csuc=0
+    bif=0
+
+    while ep<ep1 and count<itmax:
+        count=count+1
+        if output>0:
+            print('%.5f\t%.5f\t%.5f\t%i\t'%(ep,ds,dx[-1],count),end='\r')
+
+        scales=np.concatenate([1/X,[1/np.sum(X)]])
+
+        x_last=np.concatenate([X.copy(),[ep*np.sum(X)]])
+        sol=root(step,x0=x_last, jac=step_jac, args=(dx,x_last,ds), method='hybr', options={'xtol':1e-8,'diag':scales})
+
+        if np.all(sol.success) and np.all(sol.x[:-1]>0):
+            csuc=csuc+1
+            X_last=X.copy()
+            ep_last=ep
+            X=sol.x[:-1]
+            ep=sol.x[-1]/np.sum(X)
+
+            dxs=dxs+[dx]
+            eps=eps+[ep]
+
+            Xs=Xs+[X]
+            ev,lvec,rvec=eig(jac(0,X,eta,nu,k,(1+ep)*XD1, XD2),left=True,right=True)
+            evals=evals+[ev]
+
+            if len(eps)>3 and np.sign(np.diff(eps)[-1])!=np.sign(np.diff(eps)[-2]):
+                bif=2
+                if output>1:
+                    print('\nSaddle-node bifurcation!\t%.6f'%(ep))
+                if stop:
+                    break
+            elif len(evals)>2 and np.abs(np.count_nonzero(np.real(evals[-1])>0) - np.count_nonzero(np.real(evals[-2])>0))>=2:
+                ind=np.argmin(np.abs(np.real(ev)))
+                omega=np.imag(ev[ind])
+
+                q=rvec[:,ind]
+                p=lvec[:,ind]/np.vdot(rvec[:,ind],lvec[:,ind])
+                if omega<0:
+                    omega=-omega
+                    q=q.conjugate()
+                    p=p.conjugate()
+                l=lcoeff(0,X,eta,nu,k,(1+ep)*XD1,XD2,q,p,omega)
+                if l<0:
+                    bif=1
+                    if output>1:
+                        print('\nSupercritical Hopf bifurcation!\t%.6f'%(ep))
+                    if stop:
+                        break
+                else:
+                    bif=3
+                    if output>1:
+                        print('\nSubcritical Hopf bifurcation!\t%.6f'%(ep))
+                    if stop:
+                        break
+
+            dx=(sol.x-x_last)/ds
+            x_last=sol.x
+            dx=dx/np.linalg.norm(dx)
+
+            if csuc>10 and sol.nfev < 1000 and ds*1.5<=dsmax:
+                ds=ds*1.5
+                csuc=0
+        else:
+            if ds/1.5>=dsmin:
+                ds=ds/1.5
+                csuc=0
+            else:
+                break
+    return np.array(Xs),np.array(eps),np.array(evals),bif
+
 
 def quasistatic (X0, eta, nu, k, XD1, XD2, ep0, ep1,ep, dep0, depmin=1e-12, depmax=1e-2, epthrs=1e-4, stepsmax=1e5, output=True, stop=True):
     n=len(X0)
