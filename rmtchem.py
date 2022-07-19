@@ -700,7 +700,7 @@ if __name__ == "__main__":
         data=(eta[::2]-nu[::2])[row,col]
         A=csr_matrix((data,(row,col)),shape=(2*nr,n),dtype=int)
         adj=A.T.dot(A)
-        g=nx.convert_matrix.from_scipy_sparse_array(adj)
+        g=nx.convert_matrix.from_scipy_sparse_matrix(adj)
 
         lcc=np.array(list(max(nx.connected_components(g), key=len)))
         n=len(lcc)
@@ -730,7 +730,8 @@ if __name__ == "__main__":
         dn2=0
 
         if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
-            Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, d1max, 0, dep, output=output,stop=True)
+            # Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, d1max, 0, dep, output=output,stop=True)
+            Xs,epsilons,evals,bif=pseudoarclength(X0, eta, nu, k, XD1, XD2, 0, d1max, ds=dep, output=output,stop=True)
             sd1=Sdot(rates(Xs[-1],eta,nu,k))
             wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
 
