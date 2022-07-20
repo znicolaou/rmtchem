@@ -112,9 +112,10 @@ def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5):
         nu[2*i][list(combs[reaction[1][0]][reaction[1][2]])]=pcounts[reaction[1][0]][reaction[1][1]]
 
         if i<na:
-            reactants=combs[reaction[0][0]][reaction[0][2]]
-            auto=np.random.choice(reactants)
-            nu[2*i,auto]=eta[2*i,auto]
+            auto=np.random.choice(n)
+            nu[2*i,auto] = nu[2*i,auto]+1
+            eta[2*i,auto] = eta[2*i,auto]+1
+
 
         nu[2*i+1]=eta[2*i]
         eta[2*i+1]=nu[2*i]
@@ -700,7 +701,7 @@ if __name__ == "__main__":
         data=(eta[::2]-nu[::2])[row,col]
         A=csr_matrix((data,(row,col)),shape=(2*nr,n),dtype=int)
         adj=A.T.dot(A)
-        g=nx.convert_matrix.from_scipy_sparse_matrix(adj)
+        g=nx.convert_matrix.from_scipy_sparse_array(adj)
 
         lcc=np.array(list(max(nx.connected_components(g), key=len)))
         n=len(lcc)
@@ -729,7 +730,8 @@ if __name__ == "__main__":
         dn1=0
         dn2=0
 
-        if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
+        # if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
+        if quasi:
             # Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, d1max, 0, dep, output=output,stop=True)
             Xs,epsilons,evals,bif=pseudoarclength(X0, eta, nu, k, XD1, XD2, 0, d1max, ds=dep, output=output,stop=True)
             sd1=Sdot(rates(Xs[-1],eta,nu,k))

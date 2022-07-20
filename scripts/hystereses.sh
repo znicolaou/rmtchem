@@ -11,16 +11,12 @@ module load python/anaconda3.7
 source activate my_env
 export OMP_NUM_THREADS=1
 
-ZGN_num=64
+ZGN_num=1024
 ZGN_skip=10
 ZGN_ns="64"
 ZGN_cs="0.5 1.0 2.0"
-ZGN_cs="0.5"
-ZGN_ds="0.05 0.1 0.2"
-ZGN_ds="0.05"
+#ZGN_ds="0.05 0.1 0.2"
 ZGN_as="0 0.25 0.5"
-
-jid=$((SLURM_ARRAY_TASK_ID-1))
 
 for n in $ZGN_ns; do
 for c in $ZGN_cs; do
@@ -35,8 +31,7 @@ echo $n $nr $nd $na
 ZGN_filebase0="data/hystereses/${n}/${c}/${d}/${a}"
 mkdir -p $ZGN_filebase0
 
-for sid in `seq $ZGN_num`; do
-seed=$((ZGN_num*jid+sid))
+for seed in `seq $ZGN_num`; do
 ZGN_filebase="${ZGN_filebase0}/${seed}"
 
 if [ ! -f ${ZGN_filebase}out.dat ]; then
