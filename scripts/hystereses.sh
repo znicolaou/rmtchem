@@ -7,15 +7,15 @@
 #SBATCH --output=outs/%j.out
 #SBATCH -p GTX980,K80
 
-module load python/anaconda3.7
-source activate my_env
+#module load python/anaconda3.7
+#source activate my_env
 export OMP_NUM_THREADS=1
 
 ZGN_num=1024
 ZGN_skip=10
 ZGN_ns="64"
 ZGN_cs="0.5 1.0 2.0"
-#ZGN_ds="0.05 0.1 0.2"
+ZGN_ds="0.1 0.2 0.3"
 ZGN_as="0 0.25 0.5"
 
 for n in $ZGN_ns; do
