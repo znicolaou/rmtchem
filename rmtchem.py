@@ -349,7 +349,7 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-
             if output>0:
                 print('%.5f\t%.5f\t%.5f\t%.5f\t%i\t%i\t'%(ep,ds,dx[-1],dep,count, null_space(A).shape[-1]),end='\r')
 
-            scales=np.concatenate([1/X[inds2],[1/np.sum(X[inds2])*n]])
+            scales=np.concatenate([1/X[inds2],[1.0]])
 
             mat=step_jac(x_last,dx,x_last,ds)
             ev,evecs=np.linalg.eig(mat)
