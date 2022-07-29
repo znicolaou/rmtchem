@@ -276,32 +276,36 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
 
     return ts,Xts,success,m0,state
 
-def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4, dsmin=1e-16, depmin=1e-6, itmax=1e5, output=True, stop=True, tol=1e-8, stol=1e-4):
+def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-1, dsmax=1e6, dsmin=1e-16, depmin=1e-6, itmax=1e5, output=True, stop=True, tol=1e-6, stol=1e-4):
     def step(x,dx,x_last,ds):
         X=np.zeros(n)
         inds=np.where(XD2>0)[0]
         inds2=np.setdiff1d(np.arange(n),inds)
         X[inds2]=x[:-1]
-        ep=x[-1]/np.sum(X[inds2])*n
+        ep=x[-1]
         X[inds]=(1+ep)*XD1[inds]/XD2[inds]
 
         f=func(t,X,eta,nu,k,(1+ep)*XD1,XD2)[inds2]
-        ps=(x-x_last).dot(dx)-ds
+        ps=(np.log(x[:-1])-np.log(x_last[:-1])).dot(dx[:-1])+(x[-1]-x_last[-1])*dx[-1]-ds
         return np.concatenate([f,[ps]])
 
+    #this issue is that this is poorly conditioned.
     def step_jac(x,dx,x_last,ds):
         X=np.zeros(n)
         inds=np.where(XD2>0)[0]
         inds2=np.setdiff1d(np.arange(n),inds)
         X[inds2]=x[:-1]
-        ep=x[-1]/np.sum(X[inds2])*n
+        ep=x[-1]
         X[inds]=(1+ep)*XD1[inds]/XD2[inds]
 
         a=jac(t,X,eta,nu,k,(1+ep)*XD1,XD2)
-        b=a[inds2,:][:,inds].dot(X[inds]).reshape((n-nd,1))/np.sum(X[inds2])*n
-        A=np.hstack([a[inds2,:][:,inds2]-ep*b/n,b])
+        b=a[inds2,:][:,inds].dot(X[inds])
+        A=np.hstack([a[inds2,:][:,inds2],b[:,np.newaxis]])
+        c=dx[:-1]/x[:-1]
+        d=np.array([dx[-1]])
+        B=np.hstack([c,d])
 
-        return np.vstack([A,dx])
+        return np.vstack([A,B])
 
     def sn(ep,X_last):
         sol=root(lambda X:func(0,X,eta,nu,k,(1+ep)*XD1,XD2),x0=X_last, method='hybr', options={'xtol':tol,'diag':1/X_last})
@@ -320,11 +324,11 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
     nd=len(inds)
     inds2=np.setdiff1d(np.arange(n),inds)
     X[inds]=(1+ep)*XD1[inds]/XD2[inds]
-    x_last=np.concatenate([X[inds2],[ep0*np.sum(X[inds2])/n]])
+    x_last=np.concatenate([X[inds2],[ep0]])
 
     a=jac(t,X,eta,nu,k,(1+ep)*XD1,XD2)
-    b=a[inds2,:][:,inds].dot(X[inds]).reshape((n-nd,1))/np.sum(X[inds2])*n
-    A=np.hstack([a[inds2,:][:,inds2]-ep*b/n,b])
+    b=a[inds2,:][:,inds].dot(X[inds])
+    A=np.hstack([a[inds2,:][:,inds2],b[:,np.newaxis]])
     ns=null_space(A)
     dx=ns[:,0]
     if dx[-1]<0:
@@ -346,15 +350,25 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
                 print('%.5f\t%.5f\t%.5f\t%.5f\t%i\t%i\t'%(ep,ds,dx[-1],dep,count, null_space(A).shape[-1]),end='\r')
 
             scales=np.concatenate([1/X[inds2],[1/np.sum(X[inds2])*n]])
-            sol=root(step,x0=1.01*x_last, jac=step_jac, args=(dx,x_last,ds), method='hybr', options={'xtol':tol,'diag':scales})
+
+            mat=step_jac(x_last,dx,x_last,ds)
+            ev,evecs=np.linalg.eig(mat)
+            test1=np.abs(ev[np.argmin(np.abs(ev))])
+            test2=np.abs(ev[np.argmax(np.abs(ev))])
+            b=np.zeros(len(x_last))
+            b[-1]=ds
+            xpred=x_last+np.linalg.solve(mat,b)
+            if output>0:
+                print('%.5f\t%.5f\t%.5f\t%.5f\t%i\t%i\t%.5e\t'%(ep,ds,dx[-1],dep,count, null_space(A).shape[-1],test1/test2),end='\r')
+
+            sol=root(step,x0=xpred, jac=step_jac, args=(dx,x_last,ds), method='hybr', options={'xtol':tol,'diag':scales})
 
             if sol.success:
                 csuc=csuc+1
                 X[inds2]=sol.x[:-1]
-                ep=sol.x[-1]/np.sum(X[inds2])*n
+                ep=sol.x[-1]
                 X[inds]=(1+ep)*XD1[inds]/XD2[inds]
                 ev,lvec,rvec=eig(jac(0,X,eta,nu,k,(1+ep)*XD1, XD2)[inds2,:][:,inds2],left=True,right=True)
-                # x_last=np.concatenate([X[inds2].copy(),[ep*np.sum(X[inds2])]])
                 x_last=sol.x.copy()
 
                 eps=eps+[ep]
@@ -405,8 +419,8 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
 
                 # dx=(sol.x-x_last)/ds
                 a=jac(t,X,eta,nu,k,(1+ep)*XD1,XD2)
-                b=a[inds2,:][:,inds].dot(X[inds]).reshape((n-nd,1))/np.sum(X[inds2])*n
-                A=np.hstack([a[inds2,:][:,inds2]-ep*b/n,b])
+                b=a[inds2,:][:,inds].dot(X[inds])
+                A=np.hstack([a[inds2,:][:,inds2],b[:,np.newaxis]])
                 ns=null_space(A)
                 dx=np.sum(ns.T.dot(dx)*ns,axis=1)
 
