@@ -433,7 +433,7 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
         print('\nKeyboard interrupt')
         bif=-1
 
-    return np.array(Xs),np.array(eps),np.array(evals),bif,sols
+    return np.array(Xs),np.array(eps),np.array(evals),bif
 
 def pseudoarclength (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4, dsmin=1e-16, depmin=1e-6, itmax=1e5, output=True, stop=True, tol=1e-8, stol=1e-4):
     def step(x,dx,x_last,ds):
