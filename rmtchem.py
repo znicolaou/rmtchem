@@ -364,7 +364,7 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
 
                 if len(eps)>3 and np.sign(np.diff(eps)[-1])!=np.sign(np.diff(eps)[-2]):
                     if output>2:
-                        print('\nTrying to find saddle-node\t%.6f'%(ep))
+                        print('\nTrying to find saddle-node\t%.6f'%(ep),end='')
                     try:
                         sep,r=newton(sn,x0=ep,args=[X],full_output=True,tol=stol)
 
