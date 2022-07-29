@@ -282,7 +282,7 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
         inds=np.where(XD2>0)[0]
         inds2=np.setdiff1d(np.arange(n),inds)
         X[inds2]=x[:-1]
-        ep=x[-1]/np.sum(X[inds2])
+        ep=x[-1]/np.sum(X[inds2])*n
         X[inds]=(1+ep)*XD1[inds]/XD2[inds]
 
         f=func(t,X,eta,nu,k,(1+ep)*XD1,XD2)[inds2]
@@ -294,17 +294,17 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
         inds=np.where(XD2>0)[0]
         inds2=np.setdiff1d(np.arange(n),inds)
         X[inds2]=x[:-1]
-        ep=x[-1]/np.sum(X[inds2])
+        ep=x[-1]/np.sum(X[inds2])*n
         X[inds]=(1+ep)*XD1[inds]/XD2[inds]
 
         a=jac(t,X,eta,nu,k,(1+ep)*XD1,XD2)
-        b=a[inds2,:][:,inds].dot(X[inds]).reshape((n-nd,1))/np.sum(X[inds2])
-        A=np.hstack([a[inds2,:][:,inds2]-ep*b,b])
+        b=a[inds2,:][:,inds].dot(X[inds]).reshape((n-nd,1))/np.sum(X[inds2])*n
+        A=np.hstack([a[inds2,:][:,inds2]-ep*b/n,b])
 
         return np.vstack([A,dx])
 
     def sn(ep,X_last):
-        sol=root(lambda X:func(0,X,eta,nu,k,(1+ep)*XD1,XD2),x0=X_last, method='hybr', options={'xtol':stol,'diag':1/X_last})
+        sol=root(lambda X:func(0,X,eta,nu,k,(1+ep)*XD1,XD2),x0=X_last, method='hybr', options={'xtol':tol,'diag':1/X_last})
         X=sol.x
         a=jac(t,X,eta,nu,k,(1+ep)*XD1,XD2)
         evs,evals=np.linalg.eig(a)
@@ -320,11 +320,11 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
     nd=len(inds)
     inds2=np.setdiff1d(np.arange(n),inds)
     X[inds]=(1+ep)*XD1[inds]/XD2[inds]
-    x_last=np.concatenate([X[inds2],[ep0*np.sum(X[inds2])]])
+    x_last=np.concatenate([X[inds2],[ep0*np.sum(X[inds2])/n]])
 
     a=jac(t,X,eta,nu,k,(1+ep)*XD1,XD2)
-    b=a[inds2,:][:,inds].dot(X[inds]).reshape((n-nd,1))/np.sum(X[inds2])
-    A=np.hstack([a[inds2,:][:,inds2]-ep*b,b])
+    b=a[inds2,:][:,inds].dot(X[inds]).reshape((n-nd,1))/np.sum(X[inds2])*n
+    A=np.hstack([a[inds2,:][:,inds2]-ep*b/n,b])
     ns=null_space(A)
     dx=ns[:,0]
     if dx[-1]<0:
@@ -345,13 +345,13 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
             if output>0:
                 print('%.5f\t%.5f\t%.5f\t%.5f\t%i\t%i\t'%(ep,ds,dx[-1],dep,count, null_space(A).shape[-1]),end='\r')
 
-            scales=np.concatenate([1/X[inds2],[1/np.sum(X[inds2])]])
+            scales=np.concatenate([1/X[inds2],[1/np.sum(X[inds2])*n]])
             sol=root(step,x0=1.01*x_last, jac=step_jac, args=(dx,x_last,ds), method='hybr', options={'xtol':tol,'diag':scales})
 
             if sol.success:
                 csuc=csuc+1
                 X[inds2]=sol.x[:-1]
-                ep=sol.x[-1]/np.sum(X[inds2])
+                ep=sol.x[-1]/np.sum(X[inds2])*n
                 X[inds]=(1+ep)*XD1[inds]/XD2[inds]
                 ev,lvec,rvec=eig(jac(0,X,eta,nu,k,(1+ep)*XD1, XD2)[inds2,:][:,inds2],left=True,right=True)
                 # x_last=np.concatenate([X[inds2].copy(),[ep*np.sum(X[inds2])]])
@@ -362,51 +362,51 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-2, dsmax=1e4
                 evals=evals+[ev]
                 sols=sols+[sol]
 
-                # if len(eps)>3 and np.sign(np.diff(eps)[-1])!=np.sign(np.diff(eps)[-2]):
-                #     if output>2:
-                #         print('\nTrying to find saddle-node\t%.6f'%(ep))
-                #     try:
-                #         sep,r=newton(sn,x0=ep,args=[X],full_output=True)
-                #
-                #         bif=2
-                #         if output>1:
-                #             print('\nSaddle-node bifurcation!\t%.6f'%(sep))
-                #         if stop:
-                #             break
-                #     except RuntimeError:
-                #         bif=-1
-                #         print('\nFailed to converge at SN!')
-                #         break
-                # elif len(evals)>2 and np.abs(np.count_nonzero(np.real(evals[-1])>0) - np.count_nonzero(np.real(evals[-2])>0))>=2:
-                #     if output>2:
-                #         print('\nTrying to find Hopf\t%.6f'%(ep))
-                #     ind=np.argmin(np.abs(np.real(ev)))
-                #     omega=np.imag(ev[ind])
-                #
-                #     q=rvec[:,ind]
-                #     p=lvec[:,ind]/np.vdot(rvec[:,ind],lvec[:,ind])
-                #     if omega<0:
-                #         omega=-omega
-                #         q=q.conjugate()
-                #         p=p.conjugate()
-                #     l=lcoeff(0,X,eta,nu,k,(1+ep)*XD1,XD2,q,p,omega)
-                #     if l<0:
-                #         bif=1
-                #         if output>1:
-                #             print('\nSupercritical Hopf bifurcation!\t%.6f'%(ep))
-                #         if stop:
-                #             break
-                #     else:
-                #         bif=3
-                #         if output>1:
-                #             print('\nSubcritical Hopf bifurcation!\t%.6f'%(ep))
-                #         if stop:
-                #             break
+                if len(eps)>3 and np.sign(np.diff(eps)[-1])!=np.sign(np.diff(eps)[-2]):
+                    if output>2:
+                        print('\nTrying to find saddle-node\t%.6f'%(ep))
+                    try:
+                        sep,r=newton(sn,x0=ep,args=[X],full_output=True,tol=stol)
+
+                        bif=2
+                        if output>1:
+                            print('\nSaddle-node bifurcation!\t%.6f'%(sep))
+                        if stop:
+                            break
+                    except RuntimeError:
+                        bif=-1
+                        print('\nFailed to converge at SN!')
+                        break
+                elif len(evals)>2 and np.abs(np.count_nonzero(np.real(evals[-1])>0) - np.count_nonzero(np.real(evals[-2])>0))>=2:
+                    if output>2:
+                        print('\nTrying to find Hopf\t%.6f'%(ep))
+                    ind=np.argmin(np.abs(np.real(ev)))
+                    omega=np.imag(ev[ind])
+
+                    q=rvec[:,ind]
+                    p=lvec[:,ind]/np.vdot(rvec[:,ind],lvec[:,ind])
+                    if omega<0:
+                        omega=-omega
+                        q=q.conjugate()
+                        p=p.conjugate()
+                    l=lcoeff(0,X,eta,nu,k,(1+ep)*XD1,XD2,q,p,omega)
+                    if l<0:
+                        bif=1
+                        if output>1:
+                            print('\nSupercritical Hopf bifurcation!\t%.6f'%(ep))
+                        if stop:
+                            break
+                    else:
+                        bif=3
+                        if output>1:
+                            print('\nSubcritical Hopf bifurcation!\t%.6f'%(ep))
+                        if stop:
+                            break
 
                 # dx=(sol.x-x_last)/ds
                 a=jac(t,X,eta,nu,k,(1+ep)*XD1,XD2)
-                b=a[inds2,:][:,inds].dot(X[inds]).reshape((n-nd,1))/np.sum(X[inds2])
-                A=np.hstack([a[inds2,:][:,inds2]-ep*b,b])
+                b=a[inds2,:][:,inds].dot(X[inds]).reshape((n-nd,1))/np.sum(X[inds2])*n
+                A=np.hstack([a[inds2,:][:,inds2]-ep*b/n,b])
                 ns=null_space(A)
                 dx=np.sum(ns.T.dot(dx)*ns,axis=1)
 
