@@ -928,6 +928,7 @@ if __name__ == "__main__":
 
         XD1,XD2,inds=get_drive(eta,nu,k,G,d0,nd)
 
+        print(XD1)
         bif=-3
         state=-1
         Xs=np.array([])
