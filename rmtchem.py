@@ -28,7 +28,6 @@ def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5,scale=1.0):
     else:
         atoms=np.zeros((n,1))
     G=np.random.normal(loc=0, scale=scale, size=n)
-#     G=np.random.normal(loc=0, scale=0.1, size=n)
 
     pcounts=[[[2]],[[1,1],[1,2],[2,1],[2,2]]]
     tatoms=[]
@@ -963,9 +962,7 @@ if __name__ == "__main__":
 
         # if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
         if quasi and r==n-natoms:
-            # Xs,epsilons,evals,bif=quasistatic(X0, eta, nu, k, XD1, XD2, 0, d1max, 0, dep, output=output,stop=True)
-            # Xs,epsilons,evals,bif=pseudoarclength(X0, eta, nu, k, XD1, XD2, 0, d1max, ds=dep, output=output,stop=True)
-            Xs,epsilons,evals,bif=pseudoarclength_hard(X0, eta, nu, k, XD1, XD2, 0, d1max, ds=dep, output=output,stop=True)
+            Xs,epsilons,evals,bif=pseudoarclength(X0, eta, nu, k, XD1, XD2, 0, d1max, ds=dep, output=output,stop=True)
             sd1=Sdot(rates(Xs[-1],eta,nu,k))
             wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
 
