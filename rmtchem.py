@@ -354,7 +354,7 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-
             test1=np.min(np.abs(ev))
             test2=np.max(np.abs(ev))
 
-            if test1/test2 < 1e-17:
+            if test1/test2 < 2**-53:
                 bif=-2
                 if output>1:
                     print('\nBad pseudoarclength conditioning!\t%.6f'%(sep))
@@ -1141,26 +1141,26 @@ if __name__ == "__main__":
             bif=-3
             epsilons=[0]
 
-            #following a bifurcation, integrate the system
-            if bif>0 and integ:
-                try:
-                    X0=Xs[-1]
-                    epsilon=epsilons[-1]+1e-2
-                    ev,evec=eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
-                    tscale=2*np.pi/np.abs(np.real(ev[np.argmin(np.abs(np.real(ev)))]))
-                    dt=100/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))
+        #following a bifurcation, integrate the system
+        if bif>0 and integ:
+            try:
+                X0=Xs[-1]
+                epsilon=epsilons[-1]+1e-2
+                ev,evec=eig(jac(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2))
+                tscale=2*np.pi/np.abs(np.real(ev[np.argmin(np.abs(np.real(ev)))]))
+                dt=100/np.max(np.abs(func(0,X0,eta,nu,k,(1+epsilon)*XD1, XD2)/X0))
 
-                    if output:
-                        print('\nIntegrating',epsilon,tscale,dt)
-                    ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1e4*tscale,dt,output=output)
-                    # print(m0,len(ts))
-                    sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
-                    wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
-                    dn1=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm(Xts[:,i]-X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
-                    dn2=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm((Xts[:,i]-X0)/X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
-                except Exception as err:
-                    print('Error integrating seed %i\t%i\t%i\t%i\t%i\n'%(seed,n,nr,nd,na),end='')
-                    print(str(err))
+                if output:
+                    print('\nIntegrating',epsilon,tscale,dt)
+                ts,Xts,success,m0,state=integrate(X0,eta,nu,k,(1+epsilon)*XD1,XD2,1e4*tscale,dt,output=output)
+                # print(m0,len(ts))
+                sd2=np.sum(np.diff(ts)[m0-1:]*[Sdot(rates(Xts[:,i],eta,nu,k)) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+                wd2=np.sum(np.diff(ts)[m0-1:]*[Wdot(Xts[:,i], G, (1+epsilon)*XD1, XD2) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+                dn1=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm(Xts[:,i]-X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+                dn2=np.sum(np.diff(ts)[m0-1:]*[np.linalg.norm((Xts[:,i]-X0)/X0) for i in range(m0,len(ts))])/ np.sum(np.diff(ts)[m0-1:])
+            except Exception as err:
+                print('Error integrating seed %i\t%i\t%i\t%i\t%i\n'%(seed,n,nr,nd,na),end='')
+                print(str(err))
 
         stop=timeit.default_timer()
         file=open(filebase+'out.dat','w')
