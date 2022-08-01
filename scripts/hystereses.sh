@@ -36,7 +36,7 @@ for seed in `seq $ZGN_num`; do
 ZGN_filebase="${ZGN_filebase0}/${seed}"
 
 if [ ! -f ${ZGN_filebase}out.dat ]; then
-  timeout 7200 ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip --atoms $ZGN_natoms &> /dev/null &
+  timeout 7200 ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip --atoms $ZGN_natoms --integrate 0 &> /dev/null &
 fi
 
 js=`jobs | wc -l`

@@ -351,8 +351,16 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-
 
             mat=step_jac(x_last,dx,x_last,ds)
             ev,evecs=np.linalg.eig(mat)
-            test1=np.abs(ev[np.argmin(np.abs(ev))])
-            test2=np.abs(ev[np.argmax(np.abs(ev))])
+            test1=np.min(np.abs(ev))
+            test2=np.max(np.abs(ev))
+
+            if test1/test2 < 1e-17:
+                bif=-2
+                if output>1:
+                    print('\nBad pseudoarclength conditioning!\t%.6f'%(sep))
+                if stop:
+                    break
+
             b=np.zeros(len(x_last))
             b[-1]=ds
             xpred=x_last+np.linalg.solve(mat,b)
@@ -669,8 +677,14 @@ def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1
 
             mat=step_jac(x_last,dx,x_last,ds)
             ev,evecs=np.linalg.eig(mat)
-            test1=np.abs(ev[np.argmin(np.abs(ev))])
-            test2=np.abs(ev[np.argmax(np.abs(ev))])
+            test1=np.min(np.abs(ev))
+            test2=np.max(np.abs(ev))
+            if test1/test2<1e-17:
+                bif=-2
+                if output>1:
+                    print('\nBad pseudoarclength conditioning!\t%.6f'%(ep))
+                if stop:
+                    break
             b=np.zeros(len(x_last))
             b[-1]=ds
             xpred=x_last+np.linalg.solve(mat,b)
