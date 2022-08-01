@@ -18,7 +18,7 @@ from scipy.optimize import newton
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
 
-def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5,scale=1.0):
+def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5,scale=0.1):
 
     eta=np.zeros((2*nr,n),dtype=int)
     nu=np.zeros((2*nr,n),dtype=int)
@@ -125,11 +125,11 @@ def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5,scale=1.0):
         #Randomly sample the rate constant in the deltaG>0 direction
         deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
         if deltaG>0:
-            k[2*i]=np.random.random()
+            k[2*i]=0.1*np.random.random()
             # k[2*i]=np.random.exponential(scale=deltaG)
             k[2*i+1]=k[2*i]*np.exp(-deltaG)
         else:
-            k[2*i+1]=np.random.random()
+            k[2*i+1]=0.1*np.random.random()
             # k[2*i+1]=np.random.exponential(scale=-deltaG)
             k[2*i]=k[2*i+1]*np.exp(deltaG)
 
@@ -399,6 +399,8 @@ def pseudoarclength_hard (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-
                         print('\nFailed to converge at SN!')
                         break
                 elif len(evals)>2 and np.abs(np.count_nonzero(np.real(evals[-1])>0) - np.count_nonzero(np.real(evals[-2])>0))>=2:
+                    ev,lvec,rvec=eig(jac(0,X,eta,nu,k,(1+ep)*XD1, XD2),left=True,right=True)
+
                     if output>2:
                         print('\nTrying to find Hopf\t%.6f'%(ep))
                     ind=np.argmin(np.abs(np.real(ev)))
