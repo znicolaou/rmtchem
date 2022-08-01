@@ -795,7 +795,7 @@ if __name__ == "__main__":
 
         # if quasi and r==n: #if r<n, steady state is not unique and continuation is singular
         if quasi and r==n-natoms:
-            Xs,epsilons,evals,bif=pseudoarclength_log(X0, eta, nu, k, XD1, XD2, 0, d1max, ds=dep, output=output,stop=True)
+            Xs,epsilons,evals,bif,dxs=pseudoarclength_log(X0, eta, nu, k, XD1, XD2, 0, d1max, ds=dep, output=output,stop=True)
             sd1=Sdot(rates(Xs[-1],eta,nu,k))
             wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
         else:
