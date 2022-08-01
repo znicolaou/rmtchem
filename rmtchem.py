@@ -1137,6 +1137,9 @@ if __name__ == "__main__":
             Xs,epsilons,evals,bif=pseudoarclength_log(X0, eta, nu, k, XD1, XD2, 0, d1max, ds=dep, output=output,stop=True)
             sd1=Sdot(rates(Xs[-1],eta,nu,k))
             wd1=Wdot(Xs[-1], G, (1+epsilons[-1])*XD1, XD2)
+        else:
+            bif=-3
+            epsilons=[0]
 
             #following a bifurcation, integrate the system
             if bif>0 and integ:

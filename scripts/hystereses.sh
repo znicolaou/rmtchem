@@ -13,11 +13,11 @@ export OMP_NUM_THREADS=1
 
 ZGN_num=1024
 ZGN_skip=10
-ZGN_ns="128"
+ZGN_ns="64"
 ZGN_cs="0.5 1.0 2.0"
 ZGN_ds="0.1 0.2 0.3"
 ZGN_as="0 0.25 0.5"
-ZGN_natoms=5
+ZGN_natoms=3
 
 for n in $ZGN_ns; do
 for c in $ZGN_cs; do
