@@ -29,7 +29,8 @@ def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5,scale=1.0):
         atoms=np.zeros((n,1))
     G=np.random.normal(loc=0, scale=scale, size=n)
 
-    pcounts=[[[1],[2]],[[1,1],[1,2],[2,1],[2,2]]]
+    pcounts=[[[1],[2]],[[1,1],[1,2],[2,1]]]
+    # pcounts=[[[1],[2]],[[1,1],[1,2],[2,1],[2,2]]]
     # pcounts=[[[2]],[[1,1],[1,2],[2,1],[2,2]]]
     tatoms=[]
     combs=[]
@@ -200,13 +201,16 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     dt0=dt/100
     dtmax=dt*1e6
     success=False
+
     try:
         while not stop or cont:
 
             try:
                 if output:
                     print('%.6f\t%.6f\t%i\t%i\tlsoda\t\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds)), end='',flush=True)
+
                 sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0/100)
+
                 if sol.success:
                     dts=np.concatenate((dts,np.diff(sol.t)))
                     Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
@@ -222,7 +226,8 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                     Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
                     ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
                 else:
-                    raise Exception(sol.message)
+                    # raise Exception(sol.message)
+                    stop=True
 
             #update timesteps
             tscales=np.max(np.abs(np.diff(Xts,axis=1)/dts/Xts[:,1:]),axis=0)
@@ -276,8 +281,10 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                             stop=True
                             success=True
 
-    except Exception as e:
-        raise e
+    except KeyboardInterrupt:
+        print('keyboard')
+        return ts,Xts,success,m0,state
+        # raise e
 
     return ts,Xts,success,m0,state
 
@@ -337,13 +344,14 @@ def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1
         while ep/ep1<1 and count<itmax:
             count=count+1
 
-            scales=np.concatenate([np.ones(n),[1.0]])
+            # scales=np.concatenate([np.ones(n),[1.0]])
+            scales=np.concatenate([np.ones(n),[n]])
 
             mat=step_jac(x_last,dx,x_last,ds)
             ev,evecs=np.linalg.eig(mat)
             test1=np.min(np.abs(ev))
             test2=np.max(np.abs(ev))
-            if test1/test2<1e-18:
+            if test1/test2<2**-53:
                 bif=-2
                 if output>2:
                     print('\nBad pseudoarclength conditioning!\t%.6f'%(ep))
