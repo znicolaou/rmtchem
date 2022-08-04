@@ -11,13 +11,20 @@
 #source activate my_env
 export OMP_NUM_THREADS=1
 
+if [ $# -ne 2 ]; then
+echo usage ./hystereses.sh filebase atoms
+exit
+fi
+
+ZGN_proc=8
 ZGN_num=1024
 ZGN_skip=10
 ZGN_ns="64"
 ZGN_cs="0.5 1.0 2.0"
 ZGN_ds="0.1 0.2 0.3"
 ZGN_as="0 0.25 0.5"
-ZGN_natoms=3
+ZGN_natoms=$2
+ZGN_filebase0=$1
 
 for n in $ZGN_ns; do
 for c in $ZGN_cs; do
@@ -29,18 +36,19 @@ nd=`bc <<< "${n}*${d} / 1"`
 na=`bc <<< "${nr}*${a} / 1"`
 echo $n $nr $nd $na
 
-ZGN_filebase0="data/hystereses/${n}/${c}/${d}/${a}"
-mkdir -p $ZGN_filebase0
+ZGN_filebase1="${ZGN_filebase0}/${n}/${c}/${d}/${a}"
+mkdir -p $ZGN_filebase1
 
 for seed in `seq $ZGN_num`; do
-ZGN_filebase="${ZGN_filebase0}/${seed}"
+ZGN_filebase="${ZGN_filebase1}/${seed}"
 
 if [ ! -f ${ZGN_filebase}out.dat ]; then
-  timeout 7200 ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip --atoms $ZGN_natoms --integrate 0 &> /dev/null &
+  #timeout 7200 ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip --atoms $ZGN_natoms &> /dev/null &
+  timeout 7200 ./rmtchem.py --filebase $ZGN_filebase --n $n --nr $nr --nd $nd --na $na --seed $seed --skip $ZGN_skip --atoms $ZGN_natoms &> /dev/null &
 fi
 
 js=`jobs | wc -l`
-while [ $js -ge 8 ]; do
+while [ $js -ge $ZGN_proc ]; do
   sleep 1
   js=`jobs | wc -l`
 done
