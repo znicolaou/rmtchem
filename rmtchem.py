@@ -14,6 +14,8 @@ from scipy.special import seterr
 from scipy.linalg import null_space
 from itertools import combinations
 from scipy.optimize import newton
+import sys
+import copy
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -29,9 +31,7 @@ def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5,scale=1.0):
         atoms=np.zeros((n,1))
     G=np.random.normal(loc=0, scale=scale, size=n)
 
-    pcounts=[[[1],[2]],[[1,1],[1,2],[2,1]]]
-    # pcounts=[[[1],[2]],[[1,1],[1,2],[2,1],[2,2]]]
-    # pcounts=[[[2]],[[1,1],[1,2],[2,1],[2,2]]]
+    pcounts=[[[1],[2]],[[1,1],[1,2],[2,1],[2,2]]]
     tatoms=[]
     combs=[]
     for i in range(len(pcounts)):
@@ -117,7 +117,6 @@ def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5,scale=1.0):
 
         if i<na:
             auto=np.random.choice(np.concatenate([combs[reaction[0][0]][reaction[0][2]],combs[reaction[1][0]][reaction[1][2]]]))
-            # auto=np.random.choice(n)
             nu[2*i,auto] = nu[2*i,auto]+1
             eta[2*i,auto] = eta[2*i,auto]+1
 
@@ -128,14 +127,10 @@ def get_network(n,nr,na=0,natoms=0,verbose=False,itmax=1e6,atmax=5,scale=1.0):
         #Randomly sample the rate constant in the deltaG>0 direction
         deltaG=np.sum(nu[2*i]*G)-np.sum(eta[2*i]*G)
         if deltaG>0:
-            k[2*i]=0.1*np.random.random()
-            # k[2*i]=np.random.random()
-            # k[2*i]=np.random.exponential(scale=deltaG/100)
+            k[2*i]=np.random.exponential(scale=deltaG)
             k[2*i+1]=k[2*i]*np.exp(-deltaG)
         else:
-            k[2*i+1]=0.1*np.random.random()
-            # k[2*i+1]=np.random.random()
-            # k[2*i+1]=np.random.exponential(scale=-deltaG/100)
+            k[2*i+1]=np.random.exponential(scale=-deltaG)
             k[2*i]=k[2*i+1]*np.exp(deltaG)
 
     return eta,nu,k,G,atoms
@@ -209,25 +204,28 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                 if output:
                     print('%.6f\t%.6f\t%i\t%i\tlsoda\t\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds)), end='',flush=True)
 
-                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='LSODA',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt,first_step=dt0/100)
+                def lfunc(t,x):
+                    return func(t,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x)
+                def ljac(t,x):
+                    return jac(t,np.exp(x),eta, nu, k, XD1, XD2)*np.exp(x)[np.newaxis,:]/np.exp(x)[:,np.newaxis]-np.diag(func(t,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x))
+                sol=solve_ivp(lfunc,(0,dt),np.log(Xts[:,-1]),method='LSODA',dense_output=True,rtol=1e-6,atol=1e-6,jac=ljac,max_step=dt,first_step=dt0/100)
 
                 if sol.success:
                     dts=np.concatenate((dts,np.diff(sol.t)))
-                    Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
+                    Xts=np.concatenate((Xts,np.exp(sol.y[:,1:])),axis=1)
                     ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
                 else:
                     raise Exception(sol.message)
             except Exception as e:
                 if output:
                     print('%.6f\t%.6f\t%i\t%i\tirk  \t%s\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds),sol.message), end='',flush=True)
-                sol=solve_ivp(func,(0,dt),Xts[:,-1],method='Radau',dense_output=True,args=(eta, nu, k, XD1, XD2),rtol=1e-6,atol=1e-6*X0,jac=jac,max_step=dt/10,first_step=dt0)
+                sol=solve_ivp(lfunc,(0,dt),np.log(Xts[:,-1]),method='Radau',dense_output=True,rtol=1e-6,atol=1e-6,jac=ljac,max_step=dt/10,first_step=dt0)
                 if sol.success:
                     dts=np.concatenate((dts,np.diff(sol.t)))
-                    Xts=np.concatenate((Xts,sol.y[:,1:]),axis=1)
+                    Xts=np.concatenate((Xts,np.exp(sol.y[:,1:])),axis=1)
                     ts=np.concatenate((ts,ts[-1]+sol.t[1:]))
                 else:
-                    # raise Exception(sol.message)
-                    stop=True
+                    raise Exception(sol.message)
 
             #update timesteps
             tscales=np.max(np.abs(np.diff(Xts,axis=1)/dts/Xts[:,1:]),axis=0)
@@ -284,11 +282,12 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
     except KeyboardInterrupt:
         print('keyboard')
         return ts,Xts,success,m0,state
-        # raise e
+    except Exception as e:
+        raise e
 
     return ts,Xts,success,m0,state
 
-def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1, dsmin=1e-16, depmin=1e-6, itmax=1e5, output=True, stop=True, tol=1e-8, stol=1e-4):
+def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1, dsmin=1e-16, depmin=1e-6, itmax=1e5, output=True, stop=True, tol=1e-8, stol=1e-4, sn_detect=True):
     def step(x,dx,x_last,ds):
         X=np.exp(x[:-1])
         ep=x[-1]
@@ -351,11 +350,12 @@ def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1
             ev,evecs=np.linalg.eig(mat)
             test1=np.min(np.abs(ev))
             test2=np.max(np.abs(ev))
-            if test1/test2<2**-53:
+            if test1/test2/n<2**-53:
                 bif=-2
                 if output>2:
                     print('\nBad pseudoarclength conditioning!\t%.6f'%(ep))
-                if stop:
+                # if stop:
+                if True:
                     break
             b=np.zeros(len(x_last))
             b[-1]=ds
@@ -387,7 +387,7 @@ def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1
                 elif output>0:
                     print('%.5e\t%.5e\t%.5e\t%.5e\t%i\t%i\t%.5e\t'%(ep,ds,dx[-1],dep,count, null_space(A,rcond=2**-53).shape[-1],test1/test2),end='\r')
 
-                if len(eps)>3 and np.sign(np.diff(eps)[-1])!=np.sign(np.diff(eps)[-2]):
+                if len(eps)>3 and np.sign(np.diff(eps)[-1])!=np.sign(np.diff(eps)[-2]) and sn_detect:
                     if output>2:
                         print('\nTrying to find saddle-node\t%.6f'%(ep),end='')
                     try:
@@ -431,20 +431,20 @@ def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1
                 if len(eps)>1:
                     dep=np.diff(eps)[-1]
                     if np.abs(dep) < depmin:
-                        print('\nFailed to converge!\t%.6f'%(ep))
+                        print('\nFailed to converge!\t%.6f\t%.6f\t%.6f'%(ep, dep, ds))
                         bif=-1
                         break
                 dx=dx/np.linalg.norm(dx)
 
-                if csuc>10 and sol.nfev < 1000 and ds*1.5<=dsmax:
+                if csuc>10 and sol.nfev < 1000 and np.abs(ds*1.5)<=dsmax:
                     ds=ds*1.5
                     csuc=0
             else:
-                if ds/1.5>=dsmin:
+                if np.abs(ds/1.5)>=dsmin:
                     ds=ds/1.5
                     csuc=0
                 else:
-                    print('\nFailed to converge!\t%.6f'%(ep))
+                    print('\nFailed to converge!\t%.6f\t%.6f\t%.6f'%(ep, dep, ds))
                     bif=-1
                     break
     except KeyboardInterrupt:
