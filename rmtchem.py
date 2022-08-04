@@ -287,7 +287,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
 
     return ts,Xts,success,m0,state
 
-def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1, dsmin=1e-16, depmin=1e-6, itmax=1e5, output=True, stop=True, tol=1e-8, stol=1e-4, sn_detect=True):
+def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1, dsmin=1e-16, depmin=1e-6, itmax=1e5, output=True, stop=True, tol=1e-8, stol=1e-4, sn_detect=True, hopf_detect=True, cond_detect=True):
     def step(x,dx,x_last,ds):
         X=np.exp(x[:-1])
         ep=x[-1]
@@ -350,7 +350,7 @@ def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1
             ev,evecs=np.linalg.eig(mat)
             test1=np.min(np.abs(ev))
             test2=np.max(np.abs(ev))
-            if test1/test2/n<2**-53:
+            if cond_detect and test1/test2<2**-53:
                 bif=-2
                 if output>2:
                     print('\nBad pseudoarclength conditioning!\t%.6f'%(ep))
@@ -387,41 +387,56 @@ def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1
                 elif output>0:
                     print('%.5e\t%.5e\t%.5e\t%.5e\t%i\t%i\t%.5e\t'%(ep,ds,dx[-1],dep,count, null_space(A,rcond=2**-53).shape[-1],test1/test2),end='\r')
 
-                if len(eps)>3 and np.sign(np.diff(eps)[-1])!=np.sign(np.diff(eps)[-2]) and sn_detect:
-                    if output>2:
-                        print('\nTrying to find saddle-node\t%.6f'%(ep),end='')
-                    try:
-                        sep,r=newton(sn,x0=ep,args=[X],full_output=True,tol=stol)
+                if len(eps)>3 and np.sign(np.diff(eps)[-1])!=np.sign(np.diff(eps)[-2]):
+                    if sn_detect:
+                        if output>2:
+                            print('\nTrying to find saddle-node\t%.6f'%(ep),end='')
+                        try:
+                            sep,r=newton(sn,x0=ep,args=[X],full_output=True,tol=stol)
 
+                            bif=2
+                            if output>1:
+                                print('\nSaddle-node bifurcation!\t%.6f'%(sep))
+                            if stop:
+                                break
+                        except RuntimeError:
+                            bif=-1
+                            print('\nFailed to converge at SN!')
+                            break
+                    else:
                         bif=2
                         if output>1:
-                            print('\nSaddle-node bifurcation!\t%.6f'%(sep))
+                            print('\nSaddle-node bifurcation!\t%.6f'%(ep))
                         if stop:
                             break
-                    except RuntimeError:
-                        bif=-1
-                        print('\nFailed to converge at SN!')
-                        break
                 elif len(evals)>2 and np.abs(np.count_nonzero(np.real(evals[-1])>0) - np.count_nonzero(np.real(evals[-2])>0))>=2:
                     if output>2:
                         print('\nTrying to find Hopf\t%.6f'%(ep))
                     ind=np.argmin(np.abs(np.real(ev)))
                     omega=np.imag(ev[ind])
 
-                    q=rvec[:,ind]
-                    p=lvec[:,ind]/np.vdot(rvec[:,ind],lvec[:,ind])
-                    if omega<0:
-                        omega=-omega
-                        q=q.conjugate()
-                        p=p.conjugate()
-                    l=lcoeff(0,X,eta,nu,k,(1+ep)*XD1,XD2,q,p,omega)
-                    if l<0:
+                    l=0
+                    if hopf_detect:
+                        q=rvec[:,ind]
+                        p=lvec[:,ind]/np.vdot(rvec[:,ind],lvec[:,ind])
+                        if omega<0:
+                            omega=-omega
+                            q=q.conjugate()
+                            p=p.conjugate()
+                        l=lcoeff(0,X,eta,nu,k,(1+ep)*XD1,XD2,q,p,omega)
+                    if l==0:
+                        bif=1
+                        if output>1:
+                            print('\nHopf bifurcation!\t%.6f'%(ep))
+                        if stop:
+                            break
+                    elif l<0:
                         bif=1
                         if output>1:
                             print('\nSupercritical Hopf bifurcation!\t%.6f'%(ep))
                         if stop:
                             break
-                    else:
+                    elif l>0:
                         bif=3
                         if output>1:
                             print('\nSubcritical Hopf bifurcation!\t%.6f'%(ep))
