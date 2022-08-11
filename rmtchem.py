@@ -167,16 +167,21 @@ def dfdepsilon(t,X,eta,nu,k,XD1,XD2):
 def hess(t,X,eta,nu,k,XD1,XD2):
     return np.tensordot(eta-nu,rates(X,eta,nu,k)[:,np.newaxis,np.newaxis]/(X[np.newaxis,:,np.newaxis]*X[np.newaxis,np.newaxis,:])*(nu[:,:,np.newaxis]*nu[:,np.newaxis,:]-nu[:,:,np.newaxis]*np.identity(len(X))[np.newaxis,:,:]), axes=(0,0))
 
-def third(t,X,eta,nu,k,XD1,XD2):
-    return np.tensordot(eta-nu,rates(X,eta,nu,k)[:,np.newaxis,np.newaxis,np.newaxis]/(X[np.newaxis,:,np.newaxis,np.newaxis]*X[np.newaxis,np.newaxis,:,np.newaxis]*X[np.newaxis,np.newaxis,np.newaxis,:])*(nu[:,:,np.newaxis,np.newaxis]*nu[:,np.newaxis,:,np.newaxis]*nu[:,np.newaxis,np.newaxis,:]-nu[:,:,np.newaxis,np.newaxis]*nu[:,np.newaxis,:,np.newaxis]*(np.identity(len(X))[np.newaxis,np.newaxis,:,:]+np.identity(len(X))[np.newaxis,:,np.newaxis,:]+np.identity(len(X))[np.newaxis,:,:,np.newaxis])+2*nu[:,:,np.newaxis,np.newaxis]*np.identity(len(X))[np.newaxis,:,:,np.newaxis]*np.identity(len(X))[np.newaxis,np.newaxis,:,:]), axes=(0,0))
+def third_prod(t,X,eta,nu,k,XD1,XD2,q):
+    W1=np.sum(nu*q[np.newaxis,:]/X[np.newaxis,:],axis=1)[:,np.newaxis]
+    W2=np.sum(nu*q[np.newaxis,:]*q[np.newaxis,:].conjugate()/X[np.newaxis,:]**2,axis=1)[:,np.newaxis]
+    W3=np.sum(nu*q[np.newaxis,:]*q[np.newaxis,:]/X[np.newaxis,:]**2,axis=1)[:,np.newaxis]
+    W4=np.sum(nu*q[np.newaxis,:]**2*q[np.newaxis,:].conjugate()/X[np.newaxis,:]**3,axis=1)[:,np.newaxis]
+    j=rates(X,eta,nu,k)[:,np.newaxis]
+    return np.sum((eta-nu)*j*(W1*W1*W1.conjugate()-2*W1*W2-W3*W1.conjugate()+2*W4),axis=0)
 
 def lcoeff(t,X,eta,nu,k,XD1,XD2,q,p,omega):
     A=jac(t,X,eta,nu,k,XD1,XD2)
     B=hess(t,X,eta,nu,k,XD1,XD2)
-    C=third(t,X,eta,nu,k,XD1,XD2)
+    c=third_prod(t,X,eta,nu,k,XD1,XD2,q)
     v=np.linalg.solve(A,B@q@q.conjugate())
     w=np.linalg.solve(2*1j*omega*np.identity(len(X))-A,B@q@q)
-    return 1/(2*omega)*np.real(np.vdot(p,C@q@q@q.conjugate()-2*B@q@v+B@q.conjugate()@w))
+    return 1/(2*omega)*np.real(np.vdot(p,c-2*B@q@v+B@q.conjugate()@w))
 
 def steady(X0, eta, nu, k, XD1, XD2):
     sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
@@ -414,7 +419,12 @@ def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1
                         print('\nTrying to find Hopf\t%.6f'%(ep))
                     ind=np.argmin(np.abs(np.real(ev)))
                     omega=np.imag(ev[ind])
-
+                    inds=np.arange(n)
+                    while omega==0:
+                        inds=np.setdiff1d(inds,[ind])
+                        mev=np.min(np.abs(np.real(ev[inds])))
+                        ind=np.where(np.abs(np.real(ev))==mev)[0][0]
+                        omega=np.imag(ev[ind])
                     l=0
                     if hopf_detect:
                         q=rvec[:,ind]
