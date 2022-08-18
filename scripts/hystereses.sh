@@ -17,11 +17,13 @@ exit
 fi
 
 ZGN_proc=16
-ZGN_num=1024
+ZGN_num=4096
 ZGN_skip=10
 ZGN_ns="128"
-ZGN_cs="0.5 1.0 2.0"
-ZGN_ds="0.1 0.2 0.3"
+#ZGN_cs="0.5 1.0 2.0"
+ZGN_cs="1.5"
+#ZGN_ds="0.1 0.2 0.3"
+ZGN_ds="0.05 0.15 0.25"
 ZGN_as="0 0.25 0.5"
 ZGN_natoms=$2
 ZGN_filebase0=$1

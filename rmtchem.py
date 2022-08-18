@@ -213,7 +213,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                     return func(t,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x)
                 def ljac(t,x):
                     return jac(t,np.exp(x),eta, nu, k, XD1, XD2)*np.exp(x)[np.newaxis,:]/np.exp(x)[:,np.newaxis]-np.diag(func(t,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x))
-                sol=solve_ivp(lfunc,(0,dt),np.log(Xts[:,-1]),method='LSODA',dense_output=True,rtol=1e-6,atol=1e-6,jac=ljac,max_step=dt,first_step=dt0/100)
+                sol=solve_ivp(lfunc,(0,10*dt),np.log(Xts[:,-1]),method='LSODA',dense_output=True,rtol=1e-6,atol=1e-6,jac=ljac,max_step=dt,first_step=dt0/100)
 
                 if sol.success:
                     dts=np.concatenate((dts,np.diff(sol.t)))
@@ -224,7 +224,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
             except Exception as e:
                 if output:
                     print('%.6f\t%.6f\t%i\t%i\tirk  \t%s\r'%(ts[-1]/t1, dt/t1, len(ts), len(minds),sol.message), end='',flush=True)
-                sol=solve_ivp(lfunc,(0,dt),np.log(Xts[:,-1]),method='Radau',dense_output=True,rtol=1e-6,atol=1e-6,jac=ljac,max_step=dt/10,first_step=dt0)
+                sol=solve_ivp(lfunc,(0,dt/10),np.log(Xts[:,-1]),method='Radau',dense_output=True,rtol=1e-6,atol=1e-6,jac=ljac,max_step=dt/10,first_step=dt0/100)
                 if sol.success:
                     dts=np.concatenate((dts,np.diff(sol.t)))
                     Xts=np.concatenate((Xts,np.exp(sol.y[:,1:])),axis=1)
