@@ -184,9 +184,14 @@ def lcoeff(t,X,eta,nu,k,XD1,XD2,q,p,omega):
     return 1/(2*omega)*np.real(np.vdot(p,c-2*B@q@v+B@q.conjugate()@w))
 
 def steady(X0, eta, nu, k, XD1, XD2):
-    sol=root(lambda x:func(0,x,eta,nu,k,XD1,XD2),x0=X0,jac=lambda x:jac(0,x,eta,nu,k,XD1,XD2), method='hybr', options={'xtol':1e-6,'diag':1/X0})
-    if np.min(sol.x)>0 and sol.success:
-        return True,sol.x
+    def lfunc(x):
+        return func(0,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x)
+    def ljac(x):
+        return jac(0,np.exp(x),eta, nu, k, XD1, XD2)*np.exp(x)[np.newaxis,:]/np.exp(x)[:,np.newaxis]-np.diag(func(0,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x))
+
+    sol=root(lfunc,x0=np.log(X0),jac=ljac, method='hybr', options={'xtol':1e-6})
+    if sol.success:
+        return True,np.exp(sol.x)
     else:
         return False,X0
 
