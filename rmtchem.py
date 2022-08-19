@@ -185,6 +185,17 @@ def lcoeff(t,X,eta,nu,k,XD1,XD2,q,p,omega):
 
 def steady(X0, eta, nu, k, XD1, XD2):
     def lfunc(x):
+        return func(0,x,eta, nu, k, XD1, XD2)
+    def ljac(x):
+        return jac(0,x,eta, nu, k, XD1, XD2)
+    sol=root(lfunc,x0=X0,jac=ljac, method='hybr', options={'xtol':1e-6, 'diag':1/X0})
+    if np.all(sol.x>0) and sol.success:
+        return True,sol.x
+    else:
+        return False,X0
+
+def lsteady(X0, eta, nu, k, XD1, XD2):
+    def lfunc(x):
         return func(0,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x)
     def ljac(x):
         return jac(0,np.exp(x),eta, nu, k, XD1, XD2)*np.exp(x)[np.newaxis,:]/np.exp(x)[:,np.newaxis]-np.diag(func(0,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x))
@@ -240,7 +251,8 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
             #update timesteps
             tscales=np.max(np.abs(np.diff(Xts,axis=1)/dts/Xts[:,1:]),axis=0)
             tinds=np.where(ts>ts[-1]/2)[0]
-            dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,ts[-1]/2,dtmax])
+            # dt=np.min([np.mean(10/tscales[tinds[:-1]]),100*dt0,ts[-1]/2,dtmax])
+            dt=np.min([np.mean(10/tscales[tinds[:-1]]),10*dt0,ts[-1]/2])
             dt=np.min([t1-ts[-1],dt])
             dt0=np.min([dt,dts[-2]])
 
@@ -290,7 +302,7 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
                             success=True
 
     except KeyboardInterrupt:
-        print('keyboard')
+        print('\nkeyboard')
         return ts,Xts,success,m0,state
     except Exception as e:
         raise e
