@@ -194,18 +194,6 @@ def steady(X0, eta, nu, k, XD1, XD2):
     else:
         return False,X0
 
-def lsteady(X0, eta, nu, k, XD1, XD2):
-    def lfunc(x):
-        return func(0,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x)
-    def ljac(x):
-        return jac(0,np.exp(x),eta, nu, k, XD1, XD2)*np.exp(x)[np.newaxis,:]/np.exp(x)[:,np.newaxis]-np.diag(func(0,np.exp(x),eta, nu, k, XD1, XD2)/np.exp(x))
-
-    sol=root(lfunc,x0=np.log(X0),jac=ljac, method='hybr', options={'xtol':1e-6})
-    if sol.success:
-        return True,np.exp(sol.x)
-    else:
-        return False,X0
-
 def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, maxsteps=1e6,cont=False):
     Xts=X0[:,np.newaxis]
     ts=np.array([0.])
@@ -269,6 +257,8 @@ def integrate(X0, eta, nu, k, XD1, XD2, t1, dt, maxcycles=100, output=False, max
             if not stop:
                 #check for steady state
                 success,solx=steady(Xts[:,-1],eta,nu,k,XD1,XD2)
+                if success:
+                    success,solx=steady(solx,eta,nu,k,XD1,XD2)
                 if success and np.linalg.norm((solx-Xts[:,-1])/solx)<1e-2:
                     ev,evec=np.linalg.eig(jac(0,solx,eta,nu,k,XD1, XD2))
                     if np.max(np.real(ev))<0:
