@@ -422,18 +422,19 @@ def pseudoarclength_log (X0, eta, nu, k, XD1, XD2, ep0, ep1, ds=1e-3, dsmax=1e-1
                         if stop:
                             break
                 elif len(evals)>2 and np.abs(np.count_nonzero(np.real(evals[-1])>0) - np.count_nonzero(np.real(evals[-2])>0))>=2:
-                    if output>2:
-                        print('\nTrying to find Hopf\t%.6f'%(ep))
-                    ind=np.argmin(np.abs(np.real(ev)))
-                    omega=np.imag(ev[ind])
-                    inds=np.arange(n)
-                    while omega==0:
-                        inds=np.setdiff1d(inds,[ind])
-                        mev=np.min(np.abs(np.real(ev[inds])))
-                        ind=np.where(np.abs(np.real(ev))==mev)[0][0]
-                        omega=np.imag(ev[ind])
                     l=0
                     if hopf_detect:
+                        if output>2:
+                            print('\nTrying to find Hopf\t%.6f'%(ep))
+                        ind=np.argmin(np.abs(np.real(ev)))
+                        omega=np.imag(ev[ind])
+                        inds=np.arange(n)
+                        while omega==0:
+                            inds=np.setdiff1d(inds,[ind])
+                            mev=np.min(np.abs(np.real(ev[inds])))
+                            ind=np.where(np.abs(np.real(ev))==mev)[0][0]
+                            omega=np.imag(ev[ind])
+
                         q=rvec[:,ind]
                         p=lvec[:,ind]/np.vdot(rvec[:,ind],lvec[:,ind])
                         if omega<0:
