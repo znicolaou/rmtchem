@@ -6,7 +6,7 @@ exit
 fi
 
 procs=16
-ZGN_num=1024
+ZGN_num=4096
 ZGN_ns="64 256 1024"
 ZGN_cmin=0.025
 ZGN_cmax=0.5
